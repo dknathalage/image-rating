@@ -1,0 +1,445 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		160FE7872D2B8803590A215D /* ImageRaterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B4C6A2E1C2B71C70F55AE87 /* ImageRaterTests.swift */; };
+		35EE8069B023B37EDE7D0BD1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF25761D06703B84F56CF4F1 /* ContentView.swift */; };
+		64F5C1B3E1549F95C4437ECF /* ImageRater.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = E4EC119722BC5ED9AFDD7CB7 /* ImageRater.xcdatamodeld */; };
+		86D313E2F76C9ECE3D72D259 /* ImageRaterApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F46B8A2612176D53E2D10AC0 /* ImageRaterApp.swift */; };
+		8D606E26FCAD4F580900C3F1 /* LibRawBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = E4BD04A90265A02C56519149 /* LibRawBridge.mm */; };
+		CA5785B4173C08BDF61F4985 /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E8B9EAC1E6A2D9973B2B125 /* PersistenceController.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		1CD596BE8C22A829AD98266A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 886AB4D387BBE8B114CC4675 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A0154A2EBE43B1102DD32282;
+			remoteInfo = ImageRater;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		2448FED23B6F6281DA84D6E3 /* ImageRater-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "ImageRater-Bridging-Header.h"; sourceTree = "<group>"; };
+		6B4C6A2E1C2B71C70F55AE87 /* ImageRaterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageRaterTests.swift; sourceTree = "<group>"; };
+		7E8B9EAC1E6A2D9973B2B125 /* PersistenceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
+		927C8C97DBC631094FF48BFB /* ImageRater.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = ImageRater.xcdatamodel; sourceTree = "<group>"; };
+		BF25761D06703B84F56CF4F1 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		C0826FF0FD240A117CCB4035 /* ImageRater.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ImageRater.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DBBBBFAB15DAF73F94977A2F /* ImageRaterTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ImageRaterTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E4BD04A90265A02C56519149 /* LibRawBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = LibRawBridge.mm; sourceTree = "<group>"; };
+		F1A364EC9D90695AE4717555 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		F46B8A2612176D53E2D10AC0 /* ImageRaterApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageRaterApp.swift; sourceTree = "<group>"; };
+		FD4392FCA13C79B275636586 /* LibRawBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LibRawBridge.h; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		0A48F36188980E36C22FB89B /* App */ = {
+			isa = PBXGroup;
+			children = (
+				BF25761D06703B84F56CF4F1 /* ContentView.swift */,
+				F46B8A2612176D53E2D10AC0 /* ImageRaterApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		0B554BA68C206EB8D98DE831 = {
+			isa = PBXGroup;
+			children = (
+				917F43440B1602B9A2C0CEFE /* ImageRater */,
+				8DC33B1982BAD5D719CA4AAE /* ImageRaterTests */,
+				BE2E09ED1CB9D752AD4BDF75 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		184BC2044D8AAD52B2913126 /* LibRaw */ = {
+			isa = PBXGroup;
+			children = (
+				FD4392FCA13C79B275636586 /* LibRawBridge.h */,
+				E4BD04A90265A02C56519149 /* LibRawBridge.mm */,
+			);
+			path = LibRaw;
+			sourceTree = "<group>";
+		};
+		8DC33B1982BAD5D719CA4AAE /* ImageRaterTests */ = {
+			isa = PBXGroup;
+			children = (
+				6B4C6A2E1C2B71C70F55AE87 /* ImageRaterTests.swift */,
+			);
+			path = ImageRaterTests;
+			sourceTree = "<group>";
+		};
+		917F43440B1602B9A2C0CEFE /* ImageRater */ = {
+			isa = PBXGroup;
+			children = (
+				2448FED23B6F6281DA84D6E3 /* ImageRater-Bridging-Header.h */,
+				F1A364EC9D90695AE4717555 /* Info.plist */,
+				0A48F36188980E36C22FB89B /* App */,
+				C4532BF6B6C39EBD7129D03B /* CoreData */,
+				184BC2044D8AAD52B2913126 /* LibRaw */,
+			);
+			path = ImageRater;
+			sourceTree = "<group>";
+		};
+		BE2E09ED1CB9D752AD4BDF75 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C0826FF0FD240A117CCB4035 /* ImageRater.app */,
+				DBBBBFAB15DAF73F94977A2F /* ImageRaterTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		C4532BF6B6C39EBD7129D03B /* CoreData */ = {
+			isa = PBXGroup;
+			children = (
+				7E8B9EAC1E6A2D9973B2B125 /* PersistenceController.swift */,
+				E4EC119722BC5ED9AFDD7CB7 /* ImageRater.xcdatamodeld */,
+			);
+			path = CoreData;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		28461EFC4DFE04C3854583DB /* ImageRaterTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FA2F708DE7F4A8981D56029F /* Build configuration list for PBXNativeTarget "ImageRaterTests" */;
+			buildPhases = (
+				45E44DA3DABD302F3561F14C /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				929E770C999211901AF9A0ED /* PBXTargetDependency */,
+			);
+			name = ImageRaterTests;
+			packageProductDependencies = (
+			);
+			productName = ImageRaterTests;
+			productReference = DBBBBFAB15DAF73F94977A2F /* ImageRaterTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		A0154A2EBE43B1102DD32282 /* ImageRater */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 17A4BF002B0F052636CED341 /* Build configuration list for PBXNativeTarget "ImageRater" */;
+			buildPhases = (
+				57D26E87E9D4A4619BCC4462 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ImageRater;
+			packageProductDependencies = (
+			);
+			productName = ImageRater;
+			productReference = C0826FF0FD240A117CCB4035 /* ImageRater.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		886AB4D387BBE8B114CC4675 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					A0154A2EBE43B1102DD32282 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 646060B49166EF3B011004F8 /* Build configuration list for PBXProject "ImageRater" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 0B554BA68C206EB8D98DE831;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = BE2E09ED1CB9D752AD4BDF75 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A0154A2EBE43B1102DD32282 /* ImageRater */,
+				28461EFC4DFE04C3854583DB /* ImageRaterTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		45E44DA3DABD302F3561F14C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				160FE7872D2B8803590A215D /* ImageRaterTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		57D26E87E9D4A4619BCC4462 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				35EE8069B023B37EDE7D0BD1 /* ContentView.swift in Sources */,
+				64F5C1B3E1549F95C4437ECF /* ImageRater.xcdatamodeld in Sources */,
+				86D313E2F76C9ECE3D72D259 /* ImageRaterApp.swift in Sources */,
+				8D606E26FCAD4F580900C3F1 /* LibRawBridge.mm in Sources */,
+				CA5785B4173C08BDF61F4985 /* PersistenceController.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		929E770C999211901AF9A0ED /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A0154A2EBE43B1102DD32282 /* ImageRater */;
+			targetProxy = 1CD596BE8C22A829AD98266A /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		04978F0FD082414656732141 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OBJC_BRIDGING_HEADER = "ImageRater/ImageRater-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		41FA556DD46FDCA58B49DCB6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.imageRater.ImageRaterTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ImageRater.app/Contents/MacOS/ImageRater";
+			};
+			name = Release;
+		};
+		4343C4676D7D3F131F229443 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = ImageRater/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.imageRater.ImageRater;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		4E660DF4D11665688DDF715A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.imageRater.ImageRaterTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ImageRater.app/Contents/MacOS/ImageRater";
+			};
+			name = Debug;
+		};
+		8FCA44168B785870F5856642 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = ImageRater/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.imageRater.ImageRater;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		B2BA138AD7BC7BFB867C735B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OBJC_BRIDGING_HEADER = "ImageRater/ImageRater-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		17A4BF002B0F052636CED341 /* Build configuration list for PBXNativeTarget "ImageRater" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4343C4676D7D3F131F229443 /* Debug */,
+				8FCA44168B785870F5856642 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		646060B49166EF3B011004F8 /* Build configuration list for PBXProject "ImageRater" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				04978F0FD082414656732141 /* Debug */,
+				B2BA138AD7BC7BFB867C735B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		FA2F708DE7F4A8981D56029F /* Build configuration list for PBXNativeTarget "ImageRaterTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4E660DF4D11665688DDF715A /* Debug */,
+				41FA556DD46FDCA58B49DCB6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCVersionGroup section */
+		E4EC119722BC5ED9AFDD7CB7 /* ImageRater.xcdatamodeld */ = {
+			isa = XCVersionGroup;
+			children = (
+				927C8C97DBC631094FF48BFB /* ImageRater.xcdatamodel */,
+			);
+			currentVersion = 927C8C97DBC631094FF48BFB /* ImageRater.xcdatamodel */;
+			path = ImageRater.xcdatamodeld;
+			sourceTree = "<group>";
+			versionGroupType = wrapper.xcdatamodel;
+		};
+/* End XCVersionGroup section */
+	};
+	rootObject = 886AB4D387BBE8B114CC4675 /* Project object */;
+}

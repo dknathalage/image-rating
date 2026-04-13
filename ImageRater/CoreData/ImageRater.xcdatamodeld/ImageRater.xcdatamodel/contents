@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22222" systemVersion="23A344" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+    <entity name="Session" representedClassName="Session" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="folderPath" optional="NO" attributeType="String"/>
+        <relationship name="images" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ImageRecord" inverseName="session" inverseEntity="ImageRecord"/>
+    </entity>
+    <entity name="ImageRecord" representedClassName="ImageRecord" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="filePath" optional="YES" attributeType="String"/>
+        <attribute name="thumbHash" optional="YES" attributeType="String"/>
+        <attribute name="processState" optional="NO" attributeType="String" defaultValueString="pending"/>
+        <attribute name="decodeError" optional="NO" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="cullRejected" optional="NO" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="cullReason" optional="YES" attributeType="String"/>
+        <attribute name="ratingStars" optional="NO" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="clipScore" optional="NO" attributeType="Float" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="aestheticScore" optional="NO" attributeType="Float" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="userOverride" optional="NO" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <relationship name="session" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Session" inverseName="images" inverseEntity="Session"/>
+    </entity>
+    <entity name="ModelConfig" representedClassName="ModelConfig" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="modelName" optional="YES" attributeType="String"/>
+        <attribute name="clipWeight" optional="NO" attributeType="Float" defaultValueString="0.5" usesScalarValueType="YES"/>
+        <attribute name="aestheticWeight" optional="NO" attributeType="Float" defaultValueString="0.5" usesScalarValueType="YES"/>
+        <attribute name="blurThreshold" optional="NO" attributeType="Float" defaultValueString="50.0" usesScalarValueType="YES"/>
+        <attribute name="earThreshold" optional="NO" attributeType="Float" defaultValueString="0.2" usesScalarValueType="YES"/>
+        <attribute name="exposureThreshold" optional="NO" attributeType="Float" defaultValueString="0.9" usesScalarValueType="YES"/>
+    </entity>
+</model>
