@@ -5,87 +5,152 @@
 
 ## Overview
 
-Add a rating filter section below the session list in the sidebar. Users can multi-select star ratings (1–5) and Unrated to filter the image grid. Each row shows the rating label and count of images at that rating in the current session. Empty selection shows all images.
+Add rating filter section below session list in sidebar. Multi-select 1★–5★ + Unrated. Each row shows count at that rating. Empty selection = show all.
 
-## Requirements
+## Effective Rating
 
-- Filter by EXIF-compatible ratings: Unrated, 1★–5★
-- Multi-select: any combination of ratings can be active simultaneously
-- Empty selection = show all images (no filter applied)
-- Each filter row displays image count for that rating in the current session
-- Zero-count ratings are shown but dimmed
-- Layout: list rows below the session list, matching native macOS sidebar style
+`ratingStars` and `userOverride` are both `NSNumber?`. `userOverride` 0 is never persisted.
 
-## Design
+```swift
+func effectiveRating(_ record: ImageRecord) -> Int {
+    if let o = record.userOverride, o.int16Value > 0 { return Int(o.int16Value) }
+    if let s = record.ratingStars { return Int(s.int16Value) }
+    return 0 // Unrated
+}
+```
 
-### State
+## Architecture: Lift @FetchRequest to ContentView
 
-`ContentView` owns the filter state:
+Move `@FetchRequest` from `GridView` to `ContentView`. `GridView` becomes a display view that receives a plain `[ImageRecord]`.
+
+**Declaration** — initial predicate `false` so nothing loads before session selected, sort matches GridView's current filePath ascending order:
+
+```swift
+@FetchRequest(
+    sortDescriptors: [SortDescriptor(\.filePath, order: .forward)],
+    predicate: NSPredicate(value: false)
+)
+private var sessionImages: FetchedResults<ImageRecord>
+```
+
+**Predicate update on session change:**
+
+```swift
+.onChange(of: selectedSession) { _, session in
+    ratingFilter = []
+    selectedRecord = nil  // clear directly; don't rely on ratingFilter onChange chain
+    sessionImages.nsPredicate = session.map {
+        NSPredicate(format: "session == %@", $0)
+    } ?? NSPredicate(value: false)
+}
+```
+
+## State (ContentView — add to existing state block)
 
 ```swift
 @State private var ratingFilter: Set<Int> = []
-// 0 = Unrated, 1–5 = star ratings, empty = show all
+// 0 = Unrated, 1–5 = stars, empty = show all
 ```
 
-### Effective Rating
-
-Derived per `ImageRecord`:
-- If `userOverride != nil && userOverride != 0`: use `Int(userOverride)`
-- Else if `ratingStars != nil`: use `Int(ratingStars!)`
-- Else: `0` (Unrated)
-
-### New Component: `RatingFilterView`
-
-**File:** `ImageRater/UI/Components/RatingFilterView.swift`
-
-- Props: `session: Session?`, `ratingFilter: Binding<Set<Int>>`
-- Own `@FetchRequest` scoped to the session to count images per effective rating
-- Renders a `List` with native multi-select (`selection: ratingFilter`)
-- Each row: star label (e.g. `★★★★★`) + count right-aligned
-- Unrated row at bottom
-- Zero-count rows shown, dimmed
-
-### Sidebar Integration (`ContentView.swift`)
-
-Below the existing session `List`, add a `Section("Filter by Rating")` containing `RatingFilterView(session: selectedSession, ratingFilter: $ratingFilter)`.
-
-Reset `ratingFilter` to `[]` when `selectedSession` changes (`.onChange(of: selectedSession)`).
-
-### Grid Filtering (`GridView.swift`)
-
-Accept new parameter `ratingFilter: Set<Int>`.
-
-Add computed property:
+## filteredImages (ContentView — replaces sortedImages)
 
 ```swift
 var filteredImages: [ImageRecord] {
-    guard !ratingFilter.isEmpty else { return Array(images) }
-    return images.filter { record in
-        let effective: Int
-        if let o = record.userOverride, o != 0 {
-            effective = Int(o)
-        } else if let s = record.ratingStars {
-            effective = Int(s)
-        } else {
-            effective = 0
-        }
-        return ratingFilter.contains(effective)
+    let all = Array(sessionImages)
+    guard !ratingFilter.isEmpty else { return all }
+    return all.filter { ratingFilter.contains(effectiveRating($0)) }
+}
+```
+
+Remove `sortedImages`. Replace all usages with `filteredImages`, including `navigatePrev`, `navigateNext`, and `setRating`.
+
+## selectedRecord Invalidation
+
+`.onChange(of: ratingFilter)`:
+
+```swift
+.onChange(of: ratingFilter) { _, _ in
+    guard let record = selectedRecord else { return }
+    if !filteredImages.contains(where: { $0.objectID == record.objectID }) {
+        selectedRecord = nil
     }
 }
 ```
 
-Use `filteredImages` in `LazyVGrid` instead of `images` directly. Navigation helpers (`navigatePrev`/`navigateNext`) in `ContentView` also use `filteredImages` to stay consistent with what's visible.
+Guard `selectedRecord != nil` first — session change already cleared it, avoiding stale-data reads while `sessionImages` refreshes. If user re-rates the selected record out of the active filter, keep `selectedRecord` (no additional invalidation beyond `ratingFilter` changes).
+
+## RatingFilterView (new: ImageRater/UI/Components/RatingFilterView.swift)
+
+- Props: `images: [ImageRecord]`, `ratingFilter: Binding<Set<Int>>`
+- Computes `ratingCounts: [Int: Int]` in-memory from `images` (counts by `effectiveRating`)
+- Rows via `Button` with manual toggle action — no native List selection
+- Row order: 5★ → 1★, Unrated last
+- Each row: star label left + count right-aligned
+- Zero-count rows shown with `.foregroundStyle(.secondary)`
+
+`ratingCounts` is recomputed whenever `images` changes. Since `images` flows from `sessionImages` (a reactive `FetchedResults`), counts update automatically as the pipeline assigns ratings or the user overrides.
+
+## Sidebar Integration (ContentView)
+
+Restructure `List(sessions, selection:)` from flat iteration to `ForEach` + `Section` to allow second section. Apply `.selectionDisabled()` to rating rows to prevent interference with `$selectedSession`:
+
+```swift
+List(selection: $selectedSession) {
+    Section("Sessions") {
+        ForEach(sessions) { session in
+            Label(
+                URL(filePath: session.folderPath ?? "").lastPathComponent,
+                systemImage: "folder"
+            )
+            .tag(session)
+        }
+    }
+    Section("Filter by Rating") {
+        RatingFilterView(images: Array(sessionImages), ratingFilter: $ratingFilter)
+            .selectionDisabled()
+    }
+}
+```
+
+## GridView Changes
+
+- Remove `@FetchRequest`
+- Remove `session: Session` parameter
+- Accept `images: [ImageRecord]` and `sessionHasImages: Bool`
+- `ImageRecord` has no `Identifiable` conformance. Use `ForEach(images, id: \.objectID)` in `LazyVGrid` (or add `extension ImageRecord: Identifiable { var id: NSManagedObjectID { objectID } }` — prefer the `ForEach` id parameter to avoid polluting the model)
+- Handle empty state internally based on both parameters:
+  - `images.isEmpty && !sessionHasImages` → `ContentUnavailableView("No Images", ...)`
+  - `images.isEmpty && sessionHasImages` → `ContentUnavailableView("No Matches", systemImage: "line.3.horizontal.decrease.circle", description: Text("No images match the selected rating filter."))`
+  - Otherwise → `LazyVGrid`
+
+## ContentView content pane
+
+Keep existing `if let session = selectedSession` branch. Replace the `GridView` call inside it:
+
+```swift
+// Before:
+GridView(session: session, selectedRecord: $selectedRecord)
+
+// After:
+GridView(
+    images: filteredImages,
+    sessionHasImages: !sessionImages.isEmpty,
+    selectedRecord: $selectedRecord
+)
+```
+
+All existing modifiers (`.safeAreaInset`, `.toolbar`, `.confirmationDialog`) remain chained on `GridView` unchanged. `session` is still in scope for toolbar actions (`runPipeline`, `exportMetadata`, `resetSession`).
 
 ## Touch Points
 
 | File | Change |
 |------|--------|
-| `ImageRater/UI/Components/RatingFilterView.swift` | New file |
-| `ImageRater/App/ContentView.swift` | Add `ratingFilter` state, sidebar section, reset on session change, pass to GridView |
-| `ImageRater/UI/GridView.swift` | Accept `ratingFilter`, add `filteredImages`, update nav helpers |
+| `ImageRater/UI/Components/RatingFilterView.swift` | New — Button rows, in-memory counts, effectiveRating |
+| `ImageRater/App/ContentView.swift` | Add `sessionImages` @FetchRequest, `ratingFilter` state, `effectiveRating` func, `filteredImages` (replaces `sortedImages`), restructure sidebar List, selectedRecord invalidation, update GridView call |
+| `ImageRater/UI/GridView.swift` | Remove @FetchRequest + `session` param, accept `images:[ImageRecord]` + `sessionHasImages:Bool`, internal empty-state |
 
 ## Out of Scope
 
-- Cull status filtering (rejected/accepted)
+- Cull status filtering
 - Sorting by rating
 - Persisting filter state across sessions
