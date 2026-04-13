@@ -1,0 +1,17 @@
+{
+  "models": [
+    {
+      "name": "clip",
+      "version": "1.0.0",
+      "url": "https://github.com/dknathalage/image-rating/releases/download/v1.0.0/clip-1.0.0.mlpackage.zip",
+      "sha256": "527b4d8bb2e65f3ea49330f21d20ed9be5203d0be7492900f006f8b297e37b14"
+    },
+    {
+      "name": "aesthetic",
+      "version": "1.0.0",
+      "url": "https://github.com/dknathalage/image-rating/releases/download/v1.0.0/aesthetic-1.0.0.mlpackage.zip",
+      "sha256": "bb3014c9b3d6c44bd1d04a7e883fe8a682cb1f98a744688a342298e7fba5e45b"
+    }
+  ],
+  "signature": "0000000000000000000000000000000000000000000000000000000000000000"
+}
