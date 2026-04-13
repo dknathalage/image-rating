@@ -60,7 +60,7 @@ actor ModelStore {
                 }
                 // Write sidecar so next launch skips re-download
                 let sidecar = dest.appendingPathExtension("sha256")
-                try? entry.sha256.write(to: sidecar, atomically: true, encoding: .utf8)
+                try entry.sha256.write(to: sidecar, atomically: true, encoding: .utf8)
                 progress("\(entry.name) ready.")
             }
         }
@@ -83,15 +83,17 @@ actor ModelStore {
 
     /// Copy a local .mlpackage into the models directory under the given name.
     /// Replaces any existing model with the same name. Invalidates cache.
-    func importModel(from url: URL, name: String) throws {
+    func importModel(from url: URL, name: String) async throws {
         let dest = modelsDir.appendingPathComponent("\(name)-local.mlpackage")
-        if FileManager.default.fileExists(atPath: dest.path) {
-            try FileManager.default.removeItem(at: dest)
-        }
-        try FileManager.default.copyItem(at: url, to: dest)
-        // Write "local" sentinel so prepareModels never overwrites a manually imported model
-        let sidecar = dest.appendingPathExtension("sha256")
-        try? "local".write(to: sidecar, atomically: true, encoding: .utf8)
+        // Run blocking file operations off the actor executor to avoid freezing model access
+        try await Task.detached(priority: .userInitiated) { [dest] in
+            if FileManager.default.fileExists(atPath: dest.path) {
+                try FileManager.default.removeItem(at: dest)
+            }
+            try FileManager.default.copyItem(at: url, to: dest)
+            let sidecar = dest.appendingPathExtension("sha256")
+            try "local".write(to: sidecar, atomically: true, encoding: .utf8)
+        }.value
         loadedModels.removeValue(forKey: name)
     }
 
