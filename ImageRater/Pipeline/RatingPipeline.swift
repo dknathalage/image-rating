@@ -13,20 +13,23 @@ enum RatingPipeline {
 
     // MARK: - Star mapping
 
-    /// Map a combined NIMA score [1–10] to 1–5 stars using calibrated absolute thresholds.
+    /// Map a combined NIMA score [1–10] to 1–5 stars.
     ///
-    /// Thresholds derived from AVA dataset statistics (NIMA paper, 2017):
-    ///   < 4.0  →  1★  (poor — technically or aesthetically deficient)
-    ///   < 4.8  →  2★  (below average)
-    ///   < 5.6  →  3★  (average — centre of the AVA distribution)
-    ///   < 6.4  →  4★  (good)
-    ///   ≥ 6.4  →  5★  (exceptional)
+    /// Thresholds calibrated against real-session data (median combined ≈ 4.4–4.5);
+    /// AVA competition-photo thresholds (4.0/4.8/5.6/6.4) were ~1.2 pts too high
+    /// for typical photography sessions, causing nearly all images to score 2★.
+    ///
+    ///   < 3.8  →  1★  (poor — technically or aesthetically deficient)
+    ///   < 4.2  →  2★  (below average)
+    ///   < 4.6  →  3★  (average)
+    ///   < 5.0  →  4★  (good)
+    ///   ≥ 5.0  →  5★  (exceptional)
     static func absoluteStars(combined score: Float) -> Int {
         switch score {
-        case ..<4.0: return 1
-        case ..<4.8: return 2
-        case ..<5.6: return 3
-        case ..<6.4: return 4
+        case ..<3.8: return 1
+        case ..<4.2: return 2
+        case ..<4.6: return 3
+        case ..<5.0: return 4
         default:     return 5
         }
     }

@@ -5,28 +5,28 @@ final class RatingPipelineTests: XCTestCase {
 
     // MARK: - absoluteStars thresholds
 
-    func testAbsoluteStars_below4_is1Star() {
-        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 3.9), 1)
+    func testAbsoluteStars_below3_8_is1Star() {
+        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 3.7), 1)
         XCTAssertEqual(RatingPipeline.absoluteStars(combined: 1.0), 1)
     }
 
-    func testAbsoluteStars_4to4_8_is2Stars() {
-        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 4.0), 2)
-        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 4.7), 2)
+    func testAbsoluteStars_3_8to4_2_is2Stars() {
+        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 3.8), 2)
+        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 4.1), 2)
     }
 
-    func testAbsoluteStars_4_8to5_6_is3Stars() {
-        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 4.8), 3)
-        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 5.5), 3)
+    func testAbsoluteStars_4_2to4_6_is3Stars() {
+        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 4.2), 3)
+        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 4.5), 3)
     }
 
-    func testAbsoluteStars_5_6to6_4_is4Stars() {
-        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 5.6), 4)
-        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 6.3), 4)
+    func testAbsoluteStars_4_6to5_0_is4Stars() {
+        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 4.6), 4)
+        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 4.9), 4)
     }
 
-    func testAbsoluteStars_6_4plus_is5Stars() {
-        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 6.4), 5)
+    func testAbsoluteStars_5_0plus_is5Stars() {
+        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 5.0), 5)
         XCTAssertEqual(RatingPipeline.absoluteStars(combined: 10.0), 5)
     }
 
