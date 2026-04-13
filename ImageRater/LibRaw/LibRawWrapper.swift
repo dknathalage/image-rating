@@ -22,6 +22,6 @@ enum LibRawWrapper {
 
     static let supportedExtensions: Set<String> = [
         "cr2", "cr3", "nef", "arw", "raf", "rw2", "dng", "orf", "pef", "srw",
-        "3fr", "dcr", "erf", "mef", "mrw", "nrw", "ptx", "r3d", "rwl", "srw", "x3f"
+        "3fr", "dcr", "erf", "mef", "mrw", "nrw", "ptx", "r3d", "rwl", "x3f"
     ]
 }

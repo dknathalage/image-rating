@@ -20,7 +20,8 @@ enum CullPipeline {
     // MARK: - Exposure Analysis (histogram)
 
     /// Returns .reject(.overexposed/.underexposed) if >10% pixels in extreme luminance range
-    static func checkExposure(image: CGImage, threshold: Float) -> CullResult {
+    /// - Parameter exposureLeniency: Higher value = more lenient (0.9 rejects only if >10% pixels are extreme)
+    static func checkExposure(image: CGImage, exposureLeniency: Float) -> CullResult {
         let ci = CIImage(cgImage: image)
         let gray = ci.applyingFilter("CIColorControls", parameters: ["inputSaturation": 0.0])
         let binCount = 256
@@ -31,8 +32,8 @@ enum CullPipeline {
         let bottomBins = histogram[0..<(binCount / 20)].reduce(0, +)
         let topFraction = Float(topBins) / Float(total)
         let bottomFraction = Float(bottomBins) / Float(total)
-        if topFraction > (1.0 - threshold) { return .reject(.overexposed) }
-        if bottomFraction > (1.0 - threshold) { return .reject(.underexposed) }
+        if topFraction > (1.0 - exposureLeniency) { return .reject(.overexposed) }
+        if bottomFraction > (1.0 - exposureLeniency) { return .reject(.underexposed) }
         return .keep
     }
 
@@ -69,10 +70,10 @@ enum CullPipeline {
     }
 
     /// Full cull — runs all checks, returns first rejection found.
-    static func cull(image: CGImage, blurThreshold: Float, earThreshold: Float, exposureThreshold: Float) async -> CullResult {
+    static func cull(image: CGImage, blurThreshold: Float, earThreshold: Float, exposureLeniency: Float) async -> CullResult {
         let blurResult = checkBlur(image: image, threshold: blurThreshold)
         if blurResult.rejected { return blurResult }
-        let exposureResult = checkExposure(image: image, threshold: exposureThreshold)
+        let exposureResult = checkExposure(image: image, exposureLeniency: exposureLeniency)
         if exposureResult.rejected { return exposureResult }
         return await checkEyesClosed(cgImage: image, earThreshold: earThreshold)
     }
