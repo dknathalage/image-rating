@@ -18,11 +18,13 @@
 		617796D07A10409D05E87519 /* RatingResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 037E9085D3A94F4FD0ADFF72 /* RatingResult.swift */; };
 		64F5C1B3E1549F95C4437ECF /* ImageRater.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = E4EC119722BC5ED9AFDD7CB7 /* ImageRater.xcdatamodeld */; };
 		669E13419B19CAD35C7A9447 /* RatingPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74FAE79C691882738757D09E /* RatingPipeline.swift */; };
+		7613E31F9A0E1DFAFEA5EA9F /* ProcessingQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 04B0B3EF2D596CB97DF5278D /* ProcessingQueue.swift */; };
 		7801637BA7B4FD83377B0FF9 /* RatingPipelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D75A35F43365E93486106E65 /* RatingPipelineTests.swift */; };
 		7C131D2EB312D83B95AF5CEF /* MetadataWriterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D037073964B87A0F24A93C65 /* MetadataWriterTests.swift */; };
 		86D313E2F76C9ECE3D72D259 /* ImageRaterApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F46B8A2612176D53E2D10AC0 /* ImageRaterApp.swift */; };
 		8D606E26FCAD4F580900C3F1 /* LibRawBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = E4BD04A90265A02C56519149 /* LibRawBridge.mm */; };
 		91CBFA68909C40049E3E5207 /* ModelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4F6C94F58002553D1D1337D /* ModelStore.swift */; };
+		93F160F69BE32544545598EC /* ProcessingQueueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46E799F849697017D7A2A17C /* ProcessingQueueTests.swift */; };
 		A0D0B144EA082C4006A61E10 /* LibRawWrapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11B85272F1A7E64C99FFACED /* LibRawWrapperTests.swift */; };
 		B9E08E487FEE04501BD9DAEF /* ThumbnailCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51CC8F269008CDA6AB3B88C3 /* ThumbnailCache.swift */; };
 		CA5785B4173C08BDF61F4985 /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E8B9EAC1E6A2D9973B2B125 /* PersistenceController.swift */; };
@@ -44,9 +46,11 @@
 
 /* Begin PBXFileReference section */
 		037E9085D3A94F4FD0ADFF72 /* RatingResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RatingResult.swift; sourceTree = "<group>"; };
+		04B0B3EF2D596CB97DF5278D /* ProcessingQueue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingQueue.swift; sourceTree = "<group>"; };
 		11B85272F1A7E64C99FFACED /* LibRawWrapperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibRawWrapperTests.swift; sourceTree = "<group>"; };
 		2448FED23B6F6281DA84D6E3 /* ImageRater-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "ImageRater-Bridging-Header.h"; sourceTree = "<group>"; };
 		3BA85CE95545757BDA458D16 /* CullPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CullPipeline.swift; sourceTree = "<group>"; };
+		46E799F849697017D7A2A17C /* ProcessingQueueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingQueueTests.swift; sourceTree = "<group>"; };
 		51CC8F269008CDA6AB3B88C3 /* ThumbnailCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailCache.swift; sourceTree = "<group>"; };
 		59427D413B63AF5B07BACF9F /* sharp.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = sharp.jpg; sourceTree = "<group>"; };
 		6B4C6A2E1C2B71C70F55AE87 /* ImageRaterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageRaterTests.swift; sourceTree = "<group>"; };
@@ -116,6 +120,7 @@
 			isa = PBXGroup;
 			children = (
 				3BA85CE95545757BDA458D16 /* CullPipeline.swift */,
+				04B0B3EF2D596CB97DF5278D /* ProcessingQueue.swift */,
 				74FAE79C691882738757D09E /* RatingPipeline.swift */,
 			);
 			path = Pipeline;
@@ -138,6 +143,7 @@
 				11B85272F1A7E64C99FFACED /* LibRawWrapperTests.swift */,
 				D037073964B87A0F24A93C65 /* MetadataWriterTests.swift */,
 				92F6CFB8C967E9F93A984E8A /* ModelStoreTests.swift */,
+				46E799F849697017D7A2A17C /* ProcessingQueueTests.swift */,
 				D75A35F43365E93486106E65 /* RatingPipelineTests.swift */,
 				9D86C094E595199A7C2338EA /* Fixtures */,
 			);
@@ -298,6 +304,7 @@
 				A0D0B144EA082C4006A61E10 /* LibRawWrapperTests.swift in Sources */,
 				7C131D2EB312D83B95AF5CEF /* MetadataWriterTests.swift in Sources */,
 				D6FF6E3106207E9CE39492AF /* ModelStoreTests.swift in Sources */,
+				93F160F69BE32544545598EC /* ProcessingQueueTests.swift in Sources */,
 				7801637BA7B4FD83377B0FF9 /* RatingPipelineTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -319,6 +326,7 @@
 				E0EE0031B9C8FB0766DE00BC /* ModelDownloader.swift in Sources */,
 				91CBFA68909C40049E3E5207 /* ModelStore.swift in Sources */,
 				CA5785B4173C08BDF61F4985 /* PersistenceController.swift in Sources */,
+				7613E31F9A0E1DFAFEA5EA9F /* ProcessingQueue.swift in Sources */,
 				669E13419B19CAD35C7A9447 /* RatingPipeline.swift in Sources */,
 				617796D07A10409D05E87519 /* RatingResult.swift in Sources */,
 				B9E08E487FEE04501BD9DAEF /* ThumbnailCache.swift in Sources */,
