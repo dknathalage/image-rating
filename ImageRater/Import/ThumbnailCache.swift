@@ -1,5 +1,6 @@
 import CoreImage
 import AppKit
+import CryptoKit
 import Foundation
 
 actor ThumbnailCache {
@@ -45,10 +46,14 @@ actor ThumbnailCache {
 
     /// Remove cached thumbnail for a URL (call after user changes rating to force refresh).
     func invalidate(for url: URL) {
-        let key = cacheKey(for: url, size: CGSize(width: 200, height: 200))
-        memCache.removeObject(forKey: key as NSString)
-        let diskURL = diskCacheURL.appendingPathComponent(key + ".jpg")
-        try? FileManager.default.removeItem(at: diskURL)
+        // Clear memory cache — scan all keys by regenerating known sizes
+        let commonSizes = [CGSize(width: 200, height: 200), CGSize(width: 1200, height: 900)]
+        for size in commonSizes {
+            let key = cacheKey(for: url, size: size)
+            memCache.removeObject(forKey: key as NSString)
+            let diskURL = diskCacheURL.appendingPathComponent(key + ".jpg")
+            try? FileManager.default.removeItem(at: diskURL)
+        }
     }
 
     // MARK: Private
@@ -82,9 +87,9 @@ actor ThumbnailCache {
         let path = url.path
         let attrs = try? FileManager.default.attributesOfItem(atPath: path)
         let mtime = (attrs?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
-        // Use hash of path + mtime + size as key; sanitize slashes for use as filename
-        let raw = "\(path.hashValue)_\(Int(size.width))x\(Int(size.height))_\(Int(mtime))"
-        return raw.replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: ":", with: "_")
+        let fileSize = (attrs?[.size] as? Int) ?? 0
+        let raw = "\(path)_\(Int(size.width))x\(Int(size.height))_\(Int(mtime))_\(fileSize)"
+        let digest = SHA256.hash(data: Data(raw.utf8))
+        return digest.map { String(format: "%02x", $0) }.joined()
     }
 }
