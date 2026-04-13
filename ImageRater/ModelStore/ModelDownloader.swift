@@ -56,12 +56,18 @@ enum ModelDownloader {
                 }
                 let unzipDir = FileManager.default.temporaryDirectory
                     .appendingPathComponent(UUID().uuidString)
-                let pkgURL = try unzip(zipURL, to: unzipDir)
-                try? FileManager.default.removeItem(at: zipURL)
-                return pkgURL
+                do {
+                    let pkgURL = try unzip(zipURL, to: unzipDir)
+                    try? FileManager.default.removeItem(at: zipURL)
+                    return pkgURL
+                } catch {
+                    try? FileManager.default.removeItem(at: unzipDir)
+                    throw error
+                }
             } catch {
                 lastError = error
                 if case ModelStoreError.checksumMismatch = error { throw error } // don't retry bad checksum
+                if case ModelStoreError.unzipFailed = error { throw error }
             }
         }
         throw lastError
@@ -83,6 +89,7 @@ enum ModelDownloader {
             at: destDir, includingPropertiesForKeys: nil
         )
         guard let pkg = contents.first(where: { $0.pathExtension == "mlpackage" }) else {
+            try? FileManager.default.removeItem(at: destDir)
             throw ModelStoreError.unzipFailed
         }
         return pkg

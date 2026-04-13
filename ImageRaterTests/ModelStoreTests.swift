@@ -65,7 +65,7 @@ final class ModelStoreTests: XCTestCase {
     }
 
     func testUnzipThrowsOnNonZip() throws {
-        let badFile = FileManager.default.temporaryDirectory.appendingPathComponent("bad.zip")
+        let badFile = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".zip")
         try "not a zip".write(to: badFile, atomically: true, encoding: .utf8)
         let outputDir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer {
