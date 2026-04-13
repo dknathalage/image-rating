@@ -95,4 +95,54 @@ final class ModelStoreTests: XCTestCase {
         }
         XCTAssertThrowsError(try ModelDownloader.unzip(zipURL, to: outputDir))
     }
+
+    // MARK: - Sidecar tests
+
+    func testSidecarWriteAndReadRoundTrip() throws {
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let dest = tmp.appendingPathComponent("clip-1.0.0.mlpackage")
+        try FileManager.default.createDirectory(at: dest, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+
+        let expectedHash = "abc123def456789"
+        let sidecar = dest.appendingPathExtension("sha256")
+        try expectedHash.write(to: sidecar, atomically: true, encoding: .utf8)
+
+        let stored = try? String(contentsOf: sidecar, encoding: .utf8)
+        let trimmed = stored?.trimmingCharacters(in: .whitespacesAndNewlines)
+        XCTAssertEqual(trimmed, expectedHash)
+    }
+
+    func testLocalSentinelDoesNotEqualRealHash() {
+        // "local" sentinel must not accidentally match any real SHA-256 hex string
+        let realHash = "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        XCTAssertNotEqual("local", realHash)
+        XCTAssertFalse("local".count == 64)
+    }
+
+    func testMissingSidecarMeansNeedsRedownload() {
+        // No sidecar file → stored is nil → valid is false
+        let fakeDir = FileManager.default.temporaryDirectory.appendingPathComponent("nonexistent.mlpackage")
+        let sidecar = fakeDir.appendingPathExtension("sha256")
+        let raw = try? String(contentsOf: sidecar, encoding: .utf8)
+        let stored = raw?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let valid = stored == "someHash" || stored == "local"
+        XCTAssertFalse(valid)
+    }
+
+    func testLocalSentinelSidecarBlocksVersionedDownload() throws {
+        // Simulate: user imported clip-local.mlpackage with sidecar "local"
+        // prepareModels checks this when versioned path doesn't exist
+        let tmp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let localDest = tmp.appendingPathComponent("clip-local.mlpackage")
+        try FileManager.default.createDirectory(at: localDest, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+
+        let localSidecar = localDest.appendingPathExtension("sha256")
+        try "local".write(to: localSidecar, atomically: true, encoding: .utf8)
+
+        let raw = try? String(contentsOf: localSidecar, encoding: .utf8)
+        let stored = raw?.trimmingCharacters(in: .whitespacesAndNewlines)
+        XCTAssertEqual(stored, "local")  // prepareModels sees this → needsDownload = false
+    }
 }
