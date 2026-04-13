@@ -14,6 +14,9 @@ enum MetadataWriter {
 
     /// Write xmp:Rating (0–5) to a .xmp sidecar file at `url`.
     static func write(stars: Int, to url: URL) throws {
+        guard (0...5).contains(stars) else {
+            throw MetadataWriterError.serializationFailed
+        }
         let metadata = CGImageMetadataCreateMutable()
 
         // Register MicrosoftPhoto namespace

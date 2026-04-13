@@ -34,15 +34,20 @@
     if (!image) return nil;
 
     int width = image->width, height = image->height;
+    int channels = image->colors;
     NSData *data = [NSData dataWithBytes:image->data length:image->data_size];
     LibRaw::dcraw_clear_mem(image);
     processor.recycle();
 
+    size_t bitsPerPixel = (size_t)channels * 8;
+    size_t bytesPerRow = (size_t)width * channels;
     CGColorSpaceRef space = CGColorSpaceCreateDeviceRGB();
+    CGBitmapInfo bitmapInfo = (channels == 4)
+        ? (CGBitmapInfo)(kCGBitmapByteOrderDefault | kCGImageAlphaNoneSkipLast)
+        : (CGBitmapInfo)(kCGBitmapByteOrderDefault | kCGImageAlphaNone);
     CGDataProviderRef provider = CGDataProviderCreateWithCFData((__bridge CFDataRef)data);
-    CGImageRef img = CGImageCreate(width, height, 8, 24, width * 3, space,
-                                   kCGBitmapByteOrderDefault | kCGImageAlphaNone,
-                                   provider, nil, false, kCGRenderingIntentDefault);
+    CGImageRef img = CGImageCreate(width, height, 8, bitsPerPixel, bytesPerRow, space,
+                                   bitmapInfo, provider, nil, false, kCGRenderingIntentDefault);
     CGDataProviderRelease(provider);
     CGColorSpaceRelease(space);
     return img;

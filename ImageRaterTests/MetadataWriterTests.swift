@@ -43,4 +43,11 @@ final class MetadataWriterTests: XCTestCase {
         try MetadataWriter.writeSidecar(stars: 3, for: imageURL)
         XCTAssertTrue(FileManager.default.fileExists(atPath: expectedXMP.path))
     }
+
+    func testWriteOutOfRangeStarsThrows() {
+        let tmpURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString + ".xmp")
+        XCTAssertThrowsError(try MetadataWriter.write(stars: 6, to: tmpURL))
+        XCTAssertThrowsError(try MetadataWriter.write(stars: -1, to: tmpURL))
+    }
 }
