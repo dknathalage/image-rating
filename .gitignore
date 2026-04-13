@@ -1,5 +1,6 @@
 # Python
 scripts/.venv/
+.venv/
 scripts/__pycache__/
 *.pyc
 
@@ -21,3 +22,9 @@ DerivedData/
 # Swift Package Manager
 .build/
 .swiftpm/
+
+# Test assets (large binary files, not committed)
+testing/
+
+# Tooling
+.superpowers/
