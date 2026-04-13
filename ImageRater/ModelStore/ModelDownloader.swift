@@ -22,7 +22,7 @@ enum ModelDownloader {
     /// Download from URL, verify SHA-256, return temp file URL. Retries 3× with exponential backoff.
     static func download(from url: URL, expectedSHA256: String) async throws -> URL {
         var lastError: Error = ModelStoreError.downloadFailed
-        for attempt in 0..<3 {
+        for attempt in 0..<4 {
             if attempt > 0 {
                 let delay = UInt64(pow(2.0, Double(attempt))) * 1_000_000_000
                 try await Task.sleep(nanoseconds: delay)

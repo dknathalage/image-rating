@@ -23,9 +23,14 @@ enum ManifestFetcher {
     }()
 
     // Ed25519 public key hex. Replace before shipping. Override in DEBUG via env var.
-    private static let publicKeyHex: String =
-        ProcessInfo.processInfo.environment["IMAGERATING_PUBKEY_HEX"]
-        ?? "REPLACE_WITH_REAL_ED25519_PUBLIC_KEY_HEX"
+    private static let publicKeyHex: String = {
+        #if DEBUG
+        if let override = ProcessInfo.processInfo.environment["IMAGERATING_PUBKEY_HEX"] {
+            return override
+        }
+        #endif
+        return "REPLACE_WITH_REAL_ED25519_PUBLIC_KEY_HEX"
+    }()
 
     static func fetch() async throws -> ModelManifest {
         let (data, _) = try await URLSession.shared.data(from: manifestURL)
