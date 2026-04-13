@@ -25,21 +25,21 @@ final class CullPipelineTests: XCTestCase {
 
     func testOverexposedImageRejected() {
         let white = makeSolidImage(size: CGSize(width: 50, height: 50), gray: 1.0)
-        let result = CullPipeline.checkExposure(image: white, threshold: 0.9)
+        let result = CullPipeline.checkExposure(image: white, exposureLeniency: 0.9)
         XCTAssertTrue(result.rejected)
         XCTAssertEqual(result.reason, .overexposed)
     }
 
     func testUnderexposedImageRejected() {
         let black = makeSolidImage(size: CGSize(width: 50, height: 50), gray: 0.0)
-        let result = CullPipeline.checkExposure(image: black, threshold: 0.9)
+        let result = CullPipeline.checkExposure(image: black, exposureLeniency: 0.9)
         XCTAssertTrue(result.rejected)
         XCTAssertEqual(result.reason, .underexposed)
     }
 
     func testNormalExposureKept() {
         let mid = makeSolidImage(size: CGSize(width: 50, height: 50), gray: 0.5)
-        let result = CullPipeline.checkExposure(image: mid, threshold: 0.9)
+        let result = CullPipeline.checkExposure(image: mid, exposureLeniency: 0.9)
         XCTAssertFalse(result.rejected)
     }
 

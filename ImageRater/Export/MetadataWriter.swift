@@ -9,8 +9,6 @@ enum MetadataWriterError: Error {
 
 enum MetadataWriter {
 
-    // XMP Basic namespace
-    private static let xmpNS = "http://ns.adobe.com/xap/1.0/" as CFString
     // MicrosoftPhoto namespace
     private static let msNS = "http://ns.microsoft.com/photo/1.0/" as CFString
 
@@ -23,7 +21,7 @@ enum MetadataWriter {
 
         // xmp:Rating (XMP Basic — already registered by default)
         CGImageMetadataSetValueWithPath(metadata, nil, "xmp:Rating" as CFString,
-                                        stars as CFTypeRef)
+                                        String(stars) as CFTypeRef)
 
         // MicrosoftPhoto:Rating (0/1/25/50/75/99)
         let msRating = microsoftRating(from: stars)
