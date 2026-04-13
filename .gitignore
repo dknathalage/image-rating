@@ -1,27 +1,23 @@
-# Xcode
-*.xcuserstate
-xcuserdata/
-*.xcbkptlist
-DerivedData/
-*.moved-aside
-*.pbxuser
-!default.pbxuser
-*.perspectivev3
-!default.perspectivev3
+# Python
+scripts/.venv/
+scripts/__pycache__/
+*.pyc
 
-# Build
-build/
-*.o
-*.d
+# Models (distributed via GitHub Releases, not committed)
+models/
+*.mlpackage
+*.mlpackage.zip
+
+# Xcode
+*.xcworkspace/xcuserdata/
+xcuserdata/
+DerivedData/
+*.xcuserstate
+*.xcbkptlist
 
 # macOS
 .DS_Store
-.AppleDouble
-.LSOverride
 
-# SPM
+# Swift Package Manager
 .build/
 .swiftpm/
-
-# Superpowers brainstorm artifacts
-.superpowers/
