@@ -39,3 +39,21 @@ targets:
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/ImageRater.app/Contents/MacOS/ImageRater"
     dependencies:
       - target: ImageRater
+schemes:
+  ImageRater:
+    build:
+      targets:
+        ImageRater: all
+        ImageRaterTests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - ImageRaterTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

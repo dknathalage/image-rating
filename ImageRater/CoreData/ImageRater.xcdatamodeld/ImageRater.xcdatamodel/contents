@@ -18,7 +18,7 @@
         <attribute name="clipScore" optional="YES" attributeType="Float" usesScalarValueType="NO"/>
         <attribute name="aestheticScore" optional="YES" attributeType="Float" usesScalarValueType="NO"/>
         <attribute name="userOverride" optional="YES" attributeType="Integer 16" usesScalarValueType="NO"/>
-        <relationship name="session" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Session" inverseName="images" inverseEntity="Session"/>
+        <relationship name="session" optional="NO" maxCount="1" deletionRule="Nullify" destinationEntity="Session" inverseName="images" inverseEntity="Session"/>
     </entity>
     <entity name="ModelConfig" representedClassName="ModelConfig" syncable="YES" codeGenerationType="class">
         <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
