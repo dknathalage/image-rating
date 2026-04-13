@@ -61,19 +61,33 @@ def download_aesthetic_weights():
     return AESTHETIC_WEIGHTS_PATH
 
 
+class _AestheticMLP(nn.Module):
+    """Matches the original christophschuhmann improved-aesthetic-predictor checkpoint.
+
+    Keys in the .pth file are "layers.0.*", "layers.2.*", … (ReLU is commented
+    out in the original repo; only Linear + Dropout layers are present).
+    """
+    def __init__(self):
+        super().__init__()
+        self.layers = nn.Sequential(
+            nn.Linear(768, 1024),
+            nn.Dropout(0.2),
+            nn.Linear(1024, 128),
+            nn.Dropout(0.2),
+            nn.Linear(128, 64),
+            nn.Dropout(0.2),
+            nn.Linear(64, 16),
+            nn.Linear(16, 1),
+        )
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.layers(x)
+
+
 def load_aesthetic_mlp(weight_path: Path) -> nn.Module:
-    """Build the 5-layer MLP used by the improved aesthetic predictor."""
+    """Load the LAION improved aesthetic predictor MLP weights."""
     state = torch.load(weight_path, map_location="cpu", weights_only=False)
-    # Architecture: Linear(768,1024) ReLU Dropout Linear(1024,128) ReLU
-    #               Dropout Linear(128,64) ReLU Dropout Linear(64,16)
-    #               ReLU Linear(16,1)
-    mlp = nn.Sequential(
-        nn.Linear(768, 1024), nn.ReLU(), nn.Dropout(0.2),
-        nn.Linear(1024, 128), nn.ReLU(), nn.Dropout(0.2),
-        nn.Linear(128, 64),   nn.ReLU(), nn.Dropout(0.2),
-        nn.Linear(64, 16),    nn.ReLU(),
-        nn.Linear(16, 1),
-    )
+    mlp = _AestheticMLP()
     mlp.load_state_dict(state)
     mlp.eval()
     return mlp
@@ -195,48 +209,56 @@ def main():
     # Enable torchscript mode to avoid return_dict issues during tracing
     clip_b32.vision_model.config.torchscript = True
 
-    # --- CLIP scorer ---
-    print("\n=== Building CLIP scorer ===")
-    clip_scorer = build_clip_scorer(clip_b32, tokenizer)
-    clip_scorer.eval()
     dummy = torch.zeros(1, 3, 224, 224)
-    with torch.no_grad():
-        traced_clip = torch.jit.trace(clip_scorer, dummy, strict=False)
-        # Sanity check: output must be a scalar in [0,1]
-        out = traced_clip(dummy)
-        assert out.shape == (1,), f"clip scorer bad shape: {out.shape}"
-        print(f"  CLIP scorer test output: {out.item():.4f}  (expected ~0.5 for zeros)")
 
-    print("\n=== Converting CLIP scorer to CoreML ===")
-    to_coreml(traced_clip, "score", MODELS_DIR / "clip.mlpackage")
-    del clip_scorer, traced_clip, clip_b32
+    # --- CLIP scorer ---
+    clip_out = MODELS_DIR / "clip.mlpackage"
+    if clip_out.exists():
+        print(f"\n=== Skipping CLIP scorer (already exists: {clip_out}) ===")
+        del clip_b32
+    else:
+        print("\n=== Building CLIP scorer ===")
+        clip_scorer = build_clip_scorer(clip_b32, tokenizer)
+        clip_scorer.eval()
+        with torch.no_grad():
+            traced_clip = torch.jit.trace(clip_scorer, dummy, strict=False)
+            out = traced_clip(dummy)
+            assert out.shape == (1,), f"clip scorer bad shape: {out.shape}"
+            print(f"  CLIP scorer test output: {out.item():.4f}  (expected ~0.5 for zeros)")
+
+        print("\n=== Converting CLIP scorer to CoreML ===")
+        to_coreml(traced_clip, "score", clip_out)
+        del clip_scorer, traced_clip, clip_b32
 
     # --- Aesthetic scorer ---
-    print("\n=== Loading CLIP ViT-L/14 (for aesthetic model) ===")
-    clip_l14 = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
-    clip_l14.eval()
+    aes_out = MODELS_DIR / "aesthetic.mlpackage"
+    if aes_out.exists():
+        print(f"\n=== Skipping aesthetic scorer (already exists: {aes_out}) ===")
+    else:
+        print("\n=== Loading CLIP ViT-L/14 (for aesthetic model) ===")
+        clip_l14 = CLIPModel.from_pretrained("openai/clip-vit-large-patch14")
+        clip_l14.eval()
+        clip_l14.vision_model.config.torchscript = True
 
-    # Enable torchscript mode to avoid return_dict issues during tracing
-    clip_l14.vision_model.config.torchscript = True
+        print("=== Loading LAION aesthetic predictor weights ===")
+        weights_path = download_aesthetic_weights()
+        mlp = load_aesthetic_mlp(weights_path)
 
-    print("=== Loading LAION aesthetic predictor weights ===")
-    weights_path = download_aesthetic_weights()
-    mlp = load_aesthetic_mlp(weights_path)
+        aesthetic_scorer = AestheticScorer(
+            clip_l14.vision_model,
+            clip_l14.visual_projection,
+            mlp,
+        )
+        aesthetic_scorer.eval()
+        with torch.no_grad():
+            traced_aes = torch.jit.trace(aesthetic_scorer, dummy, strict=False)
+            out = traced_aes(dummy)
+            assert out.shape == (1,), f"aesthetic scorer bad shape: {out.shape}"
+            print(f"  Aesthetic scorer test output: {out.item():.4f}  (expected ~4-7 for real photos)")
 
-    aesthetic_scorer = AestheticScorer(
-        clip_l14.vision_model,
-        clip_l14.visual_projection,
-        mlp,
-    )
-    aesthetic_scorer.eval()
-    with torch.no_grad():
-        traced_aes = torch.jit.trace(aesthetic_scorer, dummy, strict=False)
-        out = traced_aes(dummy)
-        assert out.shape == (1,), f"aesthetic scorer bad shape: {out.shape}"
-        print(f"  Aesthetic scorer test output: {out.item():.4f}  (expected ~4-7 for real photos)")
-
-    print("\n=== Converting aesthetic scorer to CoreML ===")
-    to_coreml(traced_aes, "score", MODELS_DIR / "aesthetic.mlpackage")
+        print("\n=== Converting aesthetic scorer to CoreML ===")
+        to_coreml(traced_aes, "score", aes_out)
+        del aesthetic_scorer, traced_aes, clip_l14, mlp
 
     print("\n=== Done ===")
     print(f"Models written to: {MODELS_DIR.resolve()}")
