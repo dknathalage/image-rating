@@ -16,9 +16,11 @@ enum LibRawWrapper {
         guard url.isFileURL else { return nil }
         let ext = url.pathExtension.lowercased()
         if supportedExtensions.contains(ext) {
-            return LibRawBridge.decodeFile(atPath: url.path)
+            if let img = LibRawBridge.decodeFile(atPath: url.path) { return img }
+            // LibRaw failed (e.g. unsupported compressed variant like Fujifilm RA21).
+            // Fall through to ImageIO — modern RAW files embed a full-res JPEG that ImageIO extracts.
         }
-        // Fall back to ImageIO for standard formats (JPEG, PNG, HEIC, etc.)
+        // ImageIO handles standard formats (JPEG, PNG, HEIC) and embedded previews in RAW.
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
             return nil

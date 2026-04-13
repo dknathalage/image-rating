@@ -81,10 +81,13 @@ actor ThumbnailCache {
 
     private static func decodeThumbnail(url: URL, size: CGSize) -> CGImage? {
         let ext = url.pathExtension.lowercased()
-        if LibRawWrapper.supportedExtensions.contains(ext) {
-            // Preview-only: extract embedded JPEG, never full RAW decode for thumbnails.
-            return LibRawWrapper.preview(url: url).flatMap { resize($0, to: size) }
+        if LibRawWrapper.supportedExtensions.contains(ext),
+           let img = LibRawWrapper.preview(url: url) {
+            // Fast path: LibRaw embedded JPEG extraction succeeded.
+            return resize(img, to: size)
         }
+        // ImageIO fallback: handles standard formats AND embedded previews in RAW files
+        // that LibRaw can't decode (e.g. Fujifilm X-H2 RA21 compressed variant).
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let cgImage = CGImageSourceCreateImageAtIndex(source, 0, [
                   kCGImageSourceThumbnailMaxPixelSize: max(size.width, size.height),
