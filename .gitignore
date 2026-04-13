@@ -1,0 +1,27 @@
+# Xcode
+*.xcuserstate
+xcuserdata/
+*.xcbkptlist
+DerivedData/
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.perspectivev3
+!default.perspectivev3
+
+# Build
+build/
+*.o
+*.d
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# SPM
+.build/
+.swiftpm/
+
+# Superpowers brainstorm artifacts
+.superpowers/
