@@ -19,7 +19,7 @@ enum ManifestFetcher {
         if let override = ProcessInfo.processInfo.environment["IMAGERATING_MANIFEST_URL"],
            let url = URL(string: override) { return url }
         #endif
-        return URL(string: "https://REPLACE_WITH_REAL_MANIFEST_HOST/models-manifest.json")!
+        return URL(string: "https://raw.githubusercontent.com/dknathalage/image-rating/main/models-manifest.json")!
     }()
 
     // Ed25519 public key hex. Replace before shipping. Override in DEBUG via env var.
