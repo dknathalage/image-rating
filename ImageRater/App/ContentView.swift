@@ -126,8 +126,8 @@ struct ContentView: View {
                                         description: Text("Use the toolbar button to import images"))
             }
         } detail: {
-            if let record = selectedRecord {
-                DetailView(record: record, onPrev: navigatePrev, onNext: navigateNext)
+            if let record = anchorRecord {
+                DetailView(record: record, onPrev: navigatePrev, onNext: navigateNext, onRate: setRating)
             } else {
                 ContentUnavailableView("Select an Image", systemImage: "photo")
             }
@@ -150,15 +150,17 @@ struct ContentView: View {
         .onDisappear { keyboard.stop() }
         .onChange(of: selectedSession) { _, session in
             ratingFilter = []
-            selectedRecord = nil
+            selectedIDs = []
+            anchorID = nil
             sessionImages.nsPredicate = session.map {
                 NSPredicate(format: "session == %@", $0)
             } ?? NSPredicate(value: false)
         }
         .onChange(of: ratingFilter) { _, _ in
-            guard let record = selectedRecord else { return }
-            if !filteredImages.contains(where: { $0.objectID == record.objectID }) {
-                selectedRecord = nil
+            guard let id = anchorID else { return }
+            if !filteredImages.contains(where: { $0.objectID == id }) {
+                selectedIDs = []
+                anchorID = nil
             }
         }
     }
@@ -177,29 +179,46 @@ struct ContentView: View {
         return all.filter { ratingFilter.contains(effectiveRating($0)) }
     }
 
+    private var anchorRecord: ImageRecord? {
+        guard let id = anchorID else { return nil }
+        return ctx.object(with: id) as? ImageRecord
+    }
+
     private func navigateNext() {
         let imgs = filteredImages
         guard !imgs.isEmpty else { return }
-        guard let cur = selectedRecord,
-              let idx = imgs.firstIndex(where: { $0.objectID == cur.objectID }) else {
-            selectedRecord = imgs.first; return
+        guard let cur = anchorID,
+              let idx = imgs.firstIndex(where: { $0.objectID == cur }) else {
+            let first = imgs.first
+            anchorID = first?.objectID
+            selectedIDs = first.map { [$0.objectID] } ?? []
+            return
         }
-        if idx + 1 < imgs.count { selectedRecord = imgs[idx + 1] }
+        if idx + 1 < imgs.count {
+            let next = imgs[idx + 1]
+            anchorID = next.objectID
+            selectedIDs = [next.objectID]
+        }
     }
 
     private func navigatePrev() {
         let imgs = filteredImages
         guard !imgs.isEmpty else { return }
-        guard let cur = selectedRecord,
-              let idx = imgs.firstIndex(where: { $0.objectID == cur.objectID }),
+        guard let cur = anchorID,
+              let idx = imgs.firstIndex(where: { $0.objectID == cur }),
               idx > 0 else { return }
-        selectedRecord = imgs[idx - 1]
+        let prev = imgs[idx - 1]
+        anchorID = prev.objectID
+        selectedIDs = [prev.objectID]
     }
 
     private func setRating(_ stars: Int) {
-        guard let record = selectedRecord else { return }
-        record.userOverride = stars == 0 ? nil : NSNumber(value: Int16(stars))
-        try? record.managedObjectContext?.save()
+        guard !selectedIDs.isEmpty else { return }
+        for id in selectedIDs {
+            guard let record = ctx.object(with: id) as? ImageRecord else { continue }
+            record.userOverride = stars == 0 ? nil : NSNumber(value: Int16(stars))
+        }
+        try? ctx.save()
     }
 
     // MARK: - Actions
