@@ -9,67 +9,80 @@ enum MetadataWriterError: Error {
 
 enum MetadataWriter {
 
-    // MicrosoftPhoto namespace
-    private static let msNS = "http://ns.microsoft.com/photo/1.0/" as CFString
-
     /// Write xmp:Rating (0–5) to a .xmp sidecar file at `url`.
     static func write(stars: Int, to url: URL) throws {
-        guard (0...5).contains(stars) else {
-            throw MetadataWriterError.serializationFailed
-        }
-        let metadata = CGImageMetadataCreateMutable()
-
-        // Register MicrosoftPhoto namespace
-        CGImageMetadataRegisterNamespaceForPrefix(metadata, msNS, "MicrosoftPhoto" as CFString, nil)
-
-        // xmp:Rating (XMP Basic — already registered by default)
-        CGImageMetadataSetValueWithPath(metadata, nil, "xmp:Rating" as CFString,
-                                        String(stars) as CFTypeRef)
-
-        // MicrosoftPhoto:Rating (0/1/25/50/75/99)
-        let msRating = microsoftRating(from: stars)
-        CGImageMetadataSetValueWithPath(metadata, nil, "MicrosoftPhoto:Rating" as CFString,
-                                        msRating as CFTypeRef)
-
-        guard let xmpData = CGImageMetadataCreateXMPData(metadata, nil) as Data? else {
-            throw MetadataWriterError.serializationFailed
-        }
-        do {
-            try xmpData.write(to: url, options: .atomic)
-        } catch {
-            throw MetadataWriterError.writeFailed(error)
-        }
+        guard (0...5).contains(stars) else { throw MetadataWriterError.serializationFailed }
+        try xmpPacket(rating: stars, label: nil).write(to: url)
     }
 
     /// Writes sidecar next to the source image file (replaces extension with .xmp).
     static func writeSidecar(stars: Int, for imageURL: URL) throws {
-        let xmpURL = imageURL.deletingPathExtension().appendingPathExtension("xmp")
-        try write(stars: stars, to: xmpURL)
+        try write(stars: stars, to: sidecarURL(for: imageURL))
     }
 
-    /// Read back xmp:Rating integer from a .xmp file.
+    /// Write xmp:Rating = -1 and xmp:Label = "Rejected".
+    /// Photomator, Lightroom, and Capture One all honour xmp:Rating = -1 as "rejected".
+    static func writeRejected(to url: URL) throws {
+        try xmpPacket(rating: -1, label: "Rejected").write(to: url)
+    }
+
+    /// Writes a rejection sidecar next to the source image file.
+    static func writeSidecarRejected(for imageURL: URL) throws {
+        try writeRejected(to: sidecarURL(for: imageURL))
+    }
+
+    /// Read back xmp:Rating integer from a .xmp sidecar file.
     static func readRating(from url: URL) throws -> Int {
         let data = try Data(contentsOf: url) as CFData
         guard let metadata = CGImageMetadataCreateFromXMPData(data) else {
             throw MetadataWriterError.readFailed
         }
         guard let value = CGImageMetadataCopyStringValueWithPath(
-            metadata, nil, "xmp:Rating" as CFString) as String? else {
-            return 0
-        }
+            metadata, nil, "xmp:Rating" as CFString) as String? else { return 0 }
         return Int(value) ?? 0
     }
 
     // MARK: Private
 
-    private static func microsoftRating(from stars: Int) -> Int {
-        switch stars {
-        case 1: return 1
-        case 2: return 25
-        case 3: return 50
-        case 4: return 75
-        case 5: return 99
-        default: return 0
+    private static func sidecarURL(for imageURL: URL) -> URL {
+        imageURL.deletingPathExtension().appendingPathExtension("xmp")
+    }
+
+    /// Builds a valid XMP document parseable by CGImageMetadataCreateFromXMPData.
+    /// Note: xpacket processing instructions (<?xpacket ...?>) break CGImageMetadata parsing
+    /// on macOS — omit the wrapper so tests and in-process reads work correctly.
+    /// External tools (Lightroom, Photomator) accept both forms.
+    private static func xmpPacket(rating: Int, label: String?) -> XMPPacket {
+        var children = "         <xmp:Rating>\(rating)</xmp:Rating>\n"
+        if let label { children += "         <xmp:Label>\(label)</xmp:Label>\n" }
+        let body = """
+        <x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="ImageRater">
+           <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+              <rdf:Description rdf:about=""
+                    xmlns:xmp="http://ns.adobe.com/xap/1.0/">
+        \(children.dropLast())
+              </rdf:Description>
+           </rdf:RDF>
+        </x:xmpmeta>
+        """
+        return XMPPacket(body)
+    }
+}
+
+// MARK: - XMPPacket
+
+private struct XMPPacket {
+    let body: String
+    init(_ body: String) { self.body = body }
+
+    func write(to url: URL) throws {
+        guard let data = body.data(using: .utf8) else {
+            throw MetadataWriterError.serializationFailed
+        }
+        do {
+            try data.write(to: url, options: .atomic)
+        } catch {
+            throw MetadataWriterError.writeFailed(error)
         }
     }
 }

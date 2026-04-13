@@ -1,0 +1,4 @@
+tensorflow>=2.13,<3.0
+tf_keras
+coremltools>=8.0
+numpy

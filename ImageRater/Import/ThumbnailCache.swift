@@ -8,6 +8,8 @@ actor ThumbnailCache {
 
     private let memCache = NSCache<NSString, NSImage>()
     private let diskCacheURL: URL
+    // Track all sizes ever requested so invalidate() clears every variant.
+    private var knownSizes: [CGSize] = []
 
     init() {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
@@ -17,53 +19,72 @@ actor ThumbnailCache {
         memCache.totalCostLimit = 200 * 1024 * 1024 // 200 MB
     }
 
-    /// Returns thumbnail for the given URL at requested size. Checks memory, then disk, then generates.
+    /// Returns thumbnail for the given URL at requested size.
     func thumbnail(for url: URL, size: CGSize = CGSize(width: 200, height: 200)) async -> NSImage? {
-        let key = cacheKey(for: url, size: size)
+        let key = Self.cacheKey(for: url, size: size)
+        let diskURL = diskCacheURL.appendingPathComponent(key + ".jpg")
+        if !knownSizes.contains(size) { knownSizes.append(size) }
 
-        // Memory hit
+        // Memory hit — fast, no I/O
         if let cached = memCache.object(forKey: key as NSString) { return cached }
 
-        // Disk hit
-        let diskURL = diskCacheURL.appendingPathComponent(key + ".jpg")
-        if let data = try? Data(contentsOf: diskURL), let img = NSImage(data: data) {
-            memCache.setObject(img, forKey: key as NSString)
-            return img
+        // Offload all blocking I/O (disk read, RAW decode, disk write) off actor executor.
+        // Throttled via decodeQueue to prevent concurrent dyld lock contention during LibRaw / ImageIO init.
+        let nsImage = await withCheckedContinuation { (continuation: CheckedContinuation<NSImage?, Never>) in
+            Self.decodeQueue.addOperation {
+                // Disk hit
+                if let data = try? Data(contentsOf: diskURL), let img = NSImage(data: data) {
+                    continuation.resume(returning: img)
+                    return
+                }
+                // Generate: decode + write disk cache
+                guard let cgImage = ThumbnailCache.decodeThumbnail(url: url, size: size) else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                let actualSize = CGSize(width: cgImage.width, height: cgImage.height)
+                let nsImage = NSImage(cgImage: cgImage, size: actualSize)
+                let rep = NSBitmapImageRep(cgImage: cgImage)
+                if let jpegData = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.8]) {
+                    try? jpegData.write(to: diskURL)
+                }
+                continuation.resume(returning: nsImage)
+            }
         }
 
-        // Generate
-        guard let cgImage = decodeThumbnail(url: url, size: size) else { return nil }
-        let nsImage = NSImage(cgImage: cgImage, size: size)
-
-        // Write to disk cache
-        let rep = NSBitmapImageRep(cgImage: cgImage)
-        if let jpegData = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.8]) {
-            try? jpegData.write(to: diskURL)
-        }
-        memCache.setObject(nsImage, forKey: key as NSString)
+        guard let nsImage else { return nil }
+        // Cost in bytes: width × height × 4 bytes (RGBA) so totalCostLimit is enforced
+        let cost = Int(size.width * size.height) * 4
+        memCache.setObject(nsImage, forKey: key as NSString, cost: cost)
         return nsImage
     }
 
-    /// Remove cached thumbnail for a URL (call after user changes rating to force refresh).
+    /// Remove all cached variants of a URL (call after user changes rating to force refresh).
     func invalidate(for url: URL) {
-        // Clear memory cache — scan all keys by regenerating known sizes
-        let commonSizes = [CGSize(width: 200, height: 200), CGSize(width: 1200, height: 900)]
-        for size in commonSizes {
-            let key = cacheKey(for: url, size: size)
+        for size in knownSizes {
+            let key = Self.cacheKey(for: url, size: size)
             memCache.removeObject(forKey: key as NSString)
             let diskURL = diskCacheURL.appendingPathComponent(key + ".jpg")
             try? FileManager.default.removeItem(at: diskURL)
         }
     }
 
-    // MARK: Private
+    // Throttle concurrent RAW/ImageIO decodes to avoid dyld lock contention on first-time plugin init.
+    private static let decodeQueue: OperationQueue = {
+        let q = OperationQueue()
+        q.maxConcurrentOperationCount = 4
+        q.qualityOfService = .userInitiated
+        return q
+    }()
 
-    private func decodeThumbnail(url: URL, size: CGSize) -> CGImage? {
+    // MARK: Private — static so they can be called from detached Tasks without actor hop
+
+    private static func decodeThumbnail(url: URL, size: CGSize) -> CGImage? {
         let ext = url.pathExtension.lowercased()
         if LibRawWrapper.supportedExtensions.contains(ext) {
-            return LibRawWrapper.decode(url: url).flatMap { resize($0, to: size) }
+            // Preview-only: extract embedded JPEG, never full RAW decode for thumbnails.
+            return LibRawWrapper.preview(url: url).flatMap { resize($0, to: size) }
         }
-        // ImageIO path for JPEG/PNG/HEIC etc.
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
               let cgImage = CGImageSourceCreateImageAtIndex(source, 0, [
                   kCGImageSourceThumbnailMaxPixelSize: max(size.width, size.height),
@@ -73,17 +94,21 @@ actor ThumbnailCache {
         return cgImage
     }
 
-    private func resize(_ image: CGImage, to size: CGSize) -> CGImage? {
+    private static func resize(_ image: CGImage, to maxSize: CGSize) -> CGImage? {
+        let imgW = CGFloat(image.width), imgH = CGFloat(image.height)
+        guard imgW > 0, imgH > 0 else { return nil }
+        let ratio = min(maxSize.width / imgW, maxSize.height / imgH)
+        let targetW = Int(imgW * ratio), targetH = Int(imgH * ratio)
         guard let ctx = CGContext(data: nil,
-                                  width: Int(size.width), height: Int(size.height),
+                                  width: targetW, height: targetH,
                                   bitsPerComponent: 8, bytesPerRow: 0,
                                   space: CGColorSpaceCreateDeviceRGB(),
                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
-        ctx.draw(image, in: CGRect(origin: .zero, size: size))
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: targetW, height: targetH))
         return ctx.makeImage()
     }
 
-    private func cacheKey(for url: URL, size: CGSize) -> String {
+    private static func cacheKey(for url: URL, size: CGSize) -> String {
         let path = url.path
         let attrs = try? FileManager.default.attributesOfItem(atPath: path)
         let mtime = (attrs?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0

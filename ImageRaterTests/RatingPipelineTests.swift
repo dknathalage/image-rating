@@ -3,40 +3,38 @@ import XCTest
 
 final class RatingPipelineTests: XCTestCase {
 
-    func testStarsFromScore1Returns1() {
-        XCTAssertEqual(RatingPipeline.starsFromAestheticScore(1.0), 1)
+    // MARK: - absoluteStars thresholds
+
+    func testAbsoluteStars_below4_is1Star() {
+        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 3.9), 1)
+        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 1.0), 1)
     }
 
-    func testStarsFromScore10Returns5() {
-        XCTAssertEqual(RatingPipeline.starsFromAestheticScore(10.0), 5)
+    func testAbsoluteStars_4to4_8_is2Stars() {
+        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 4.0), 2)
+        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 4.7), 2)
     }
 
-    func testStarsFromScore8Returns4() {
-        XCTAssertEqual(RatingPipeline.starsFromAestheticScore(8.0), 4)
+    func testAbsoluteStars_4_8to5_6_is3Stars() {
+        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 4.8), 3)
+        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 5.5), 3)
     }
 
-    func testStarsFromScoreClampsBelow1() {
-        XCTAssertEqual(RatingPipeline.starsFromAestheticScore(0.0), 1)
+    func testAbsoluteStars_5_6to6_4_is4Stars() {
+        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 5.6), 4)
+        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 6.3), 4)
     }
 
-    func testStarsFromScoreClampsAbove10() {
-        XCTAssertEqual(RatingPipeline.starsFromAestheticScore(11.0), 5)
+    func testAbsoluteStars_6_4plus_is5Stars() {
+        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 6.4), 5)
+        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 10.0), 5)
     }
 
-    func testCombineScoresEqualWeights() {
-        // clipScore 0.8 → clipNorm 8.0; aestheticScore 6.0; weighted avg 7.0 → 4 stars
-        let result = RatingPipeline.combineScores(clipScore: 0.8, aestheticScore: 6.0,
-                                                   clipWeight: 0.5, aestheticWeight: 0.5)
-        XCTAssertEqual(result.clipScore, 0.8)
-        XCTAssertEqual(result.aestheticScore, 6.0)
-        XCTAssertEqual(result.stars, 4)
+    func testAbsoluteStars_clampsBelowRange() {
+        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 0.0), 1)
     }
 
-    func testCombineScoresZeroWeightReturnsUnrated() {
-        let result = RatingPipeline.combineScores(clipScore: 0.8, aestheticScore: 6.0,
-                                                   clipWeight: 0.0, aestheticWeight: 0.0)
-        XCTAssertEqual(result, .unrated)
-    }
+    // MARK: - Pixel buffer creation
 
     func testPixelBufferCreationSucceeds() throws {
         let ctx = CGContext(data: nil, width: 10, height: 10,

@@ -8,15 +8,15 @@ final class CullPipelineTests: XCTestCase {
 
     func testSharpImageNotRejectedForBlur() {
         let image = makeGradientImage(size: CGSize(width: 100, height: 100))
-        // CIEdgeWork Laplacian variance for a sharp gradient image is ~6800; threshold of 5000 keeps it
-        let result = CullPipeline.checkBlur(image: image, threshold: 5000.0)
+        // CIEdges variance for a sharp gradient image is well above 500 (the current threshold)
+        let result = CullPipeline.checkBlur(image: image, threshold: 500.0)
         XCTAssertFalse(result.rejected)
     }
 
     func testBlurryImageRejected() {
         let blurry = makeBlurredImage(size: CGSize(width: 100, height: 100), radius: 20)
-        // CIEdgeWork Laplacian variance for a heavily blurred image is ~2900; threshold of 5000 rejects it
-        let result = CullPipeline.checkBlur(image: blurry, threshold: 5000.0)
+        // CIEdges variance for a heavily blurred image is below 500 (the current threshold)
+        let result = CullPipeline.checkBlur(image: blurry, threshold: 500.0)
         XCTAssertTrue(result.rejected)
         XCTAssertEqual(result.reason, .blurry)
     }

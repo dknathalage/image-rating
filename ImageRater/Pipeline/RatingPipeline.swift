@@ -1,6 +1,9 @@
 import CoreML
 import CoreImage
 import Foundation
+import OSLog
+
+private let log = Logger(subsystem: "com.imagerating", category: "RatingPipeline")
 
 enum RatingError: Error {
     case pixelBufferCreationFailed
@@ -8,53 +11,74 @@ enum RatingError: Error {
 
 enum RatingPipeline {
 
-    /// Normalize aesthetic score (1–10) to 1–5 star rating.
-    static func starsFromAestheticScore(_ score: Float) -> Int {
-        let clamped = min(max(score, 1.0), 10.0)
-        return Int(ceil((clamped / 10.0) * 5.0))
+    // MARK: - Star mapping
+
+    /// Map a combined NIMA score [1–10] to 1–5 stars using calibrated absolute thresholds.
+    ///
+    /// Thresholds derived from AVA dataset statistics (NIMA paper, 2017):
+    ///   < 4.0  →  1★  (poor — technically or aesthetically deficient)
+    ///   < 4.8  →  2★  (below average)
+    ///   < 5.6  →  3★  (average — centre of the AVA distribution)
+    ///   < 6.4  →  4★  (good)
+    ///   ≥ 6.4  →  5★  (exceptional)
+    static func absoluteStars(combined score: Float) -> Int {
+        switch score {
+        case ..<4.0: return 1
+        case ..<4.8: return 2
+        case ..<5.6: return 3
+        case ..<6.4: return 4
+        default:     return 5
+        }
     }
 
-    /// Combine CLIP cosine similarity (0–1) and aesthetic score (1–10) into RatingResult.
-    /// clipWeight and aestheticWeight are relative (don't need to sum to 1).
-    static func combineScores(clipScore: Float, aestheticScore: Float,
-                               clipWeight: Float, aestheticWeight: Float) -> RatingResult {
-        let clipNorm = clipScore * 10.0 // scale CLIP 0–1 to 0–10
-        let totalWeight = clipWeight + aestheticWeight
-        guard totalWeight > 0 else { return .unrated }
-        let combined = (clipNorm * clipWeight + aestheticScore * aestheticWeight) / totalWeight
-        return RatingResult(
-            stars: starsFromAestheticScore(combined),
-            clipScore: clipScore,
-            aestheticScore: aestheticScore
-        )
-    }
+    // MARK: - Inference
 
-    /// Run Core ML inference on a CGImage. Returns .unrated on any failure (never throws).
-    /// NOTE: output feature name "score" must match the .mlpackage output layer name from coremltools conversion.
+    /// Run NIMA aesthetic + technical inference on a CGImage.
+    /// Returns .unrated on any failure — never throws.
     static func rate(image: CGImage,
-                     clipModel: MLModel,
-                     aestheticModel: MLModel,
-                     clipWeight: Float,
-                     aestheticWeight: Float) async -> RatingResult {
+                     nimaAestheticModel: MLModel,
+                     nimaTechnicalModel: MLModel) async -> RatingResult {
         do {
+            log.debug("Creating pixel buffer \(image.width)×\(image.height) → 224×224")
             let pixelBuffer = try cgImageToPixelBuffer(image, width: 224, height: 224)
 
-            let clipInput = try MLDictionaryFeatureProvider(dictionary: ["image": pixelBuffer])
-            let clipOutput = try await clipModel.prediction(from: clipInput)
-            let clipScore = clipOutput.featureValue(for: "score").flatMap { Float($0.doubleValue) } ?? 0.5
-
+            log.debug("Running NIMA aesthetic inference")
             let aestheticInput = try MLDictionaryFeatureProvider(dictionary: ["image": pixelBuffer])
-            let aestheticOutput = try await aestheticModel.prediction(from: aestheticInput)
-            let aestheticScore = aestheticOutput.featureValue(for: "score").flatMap { Float($0.doubleValue) } ?? 5.0
+            let aestheticOutput = try await nimaAestheticModel.prediction(from: aestheticInput)
+            let aestheticScore = extractScore(from: aestheticOutput)
+            log.info("NIMA aesthetic: \(aestheticScore, format: .fixed(precision: 4))")
 
-            return combineScores(clipScore: clipScore, aestheticScore: aestheticScore,
-                                  clipWeight: clipWeight, aestheticWeight: aestheticWeight)
+            log.debug("Running NIMA technical inference")
+            let technicalInput = try MLDictionaryFeatureProvider(dictionary: ["image": pixelBuffer])
+            let technicalOutput = try await nimaTechnicalModel.prediction(from: technicalInput)
+            let technicalScore = extractScore(from: technicalOutput)
+            log.info("NIMA technical: \(technicalScore, format: .fixed(precision: 4))")
+
+            let combined = (aestheticScore + technicalScore) / 2.0
+            let stars = absoluteStars(combined: combined)
+            log.info("Combined \(combined, format: .fixed(precision: 3)) → \(stars)★ (aes \(aestheticScore, format: .fixed(precision: 3)), tech \(technicalScore, format: .fixed(precision: 3)))")
+
+            return RatingResult(stars: stars, aestheticScore: aestheticScore, technicalScore: technicalScore)
         } catch {
+            log.error("Rating failed: \(error)")
             return .unrated
         }
     }
 
-    // MARK: Private
+    // MARK: - Internal
+
+    /// Extract scalar score from a CoreML output provider.
+    /// Tries "score" first, then falls back to whichever key the model exposes
+    /// (TF SavedModel conversion often names the output "Identity").
+    private static func extractScore(from output: MLFeatureProvider) -> Float {
+        let key = output.featureNames.contains("score")
+            ? "score"
+            : (output.featureNames.first ?? "score")
+        return output.featureValue(for: key).flatMap { fv -> Float? in
+            if let arr = fv.multiArrayValue { return arr[0].floatValue }
+            return Float(fv.doubleValue)
+        } ?? 5.0
+    }
 
     static func cgImageToPixelBuffer(_ image: CGImage, width: Int, height: Int) throws -> CVPixelBuffer {
         var buffer: CVPixelBuffer?
@@ -63,7 +87,7 @@ enum RatingPipeline {
             kCVPixelBufferCGBitmapContextCompatibilityKey: true
         ] as CFDictionary
         let status = CVPixelBufferCreate(kCFAllocatorDefault, width, height,
-                                         kCVPixelFormatType_32ARGB, attrs, &buffer)
+                                         kCVPixelFormatType_32BGRA, attrs, &buffer)
         guard status == kCVReturnSuccess, let pb = buffer else {
             throw RatingError.pixelBufferCreationFailed
         }
@@ -75,7 +99,7 @@ enum RatingPipeline {
             bitsPerComponent: 8,
             bytesPerRow: CVPixelBufferGetBytesPerRow(pb),
             space: CGColorSpaceCreateDeviceRGB(),
-            bitmapInfo: CGImageAlphaInfo.noneSkipFirst.rawValue
+            bitmapInfo: CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.noneSkipFirst.rawValue
         ) else { throw RatingError.pixelBufferCreationFailed }
         ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
         return pb

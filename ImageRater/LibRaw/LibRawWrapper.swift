@@ -3,9 +3,15 @@ import Foundation
 import ImageIO
 
 enum LibRawWrapper {
-    /// Decode image at URL to CGImage. Returns nil on failure.
-    /// For RAW files: tries embedded JPEG preview first, falls back to full LibRaw decode.
-    /// For standard image files (JPEG, PNG, etc.): uses ImageIO directly.
+    /// Embedded JPEG preview only — fast, no full RAW decode. Use for thumbnails.
+    /// Returns nil if no embedded preview (rare on modern cameras).
+    static func preview(url: URL) -> CGImage? {
+        guard url.isFileURL, supportedExtensions.contains(url.pathExtension.lowercased()) else { return nil }
+        return LibRawBridge.preview(atPath: url.path)
+    }
+
+    /// Full decode: embedded preview first, falls back to full LibRaw decode.
+    /// Use for processing pipeline only — expensive for RAW files.
     static func decode(url: URL) -> CGImage? {
         guard url.isFileURL else { return nil }
         let ext = url.pathExtension.lowercased()

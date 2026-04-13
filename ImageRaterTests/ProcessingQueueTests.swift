@@ -12,12 +12,12 @@ final class ProcessingQueueTests: XCTestCase {
         session.createdAt = Date()
         session.folderPath = "/tmp"
 
-        // Create 3 fake image records
+        // Create 3 fake image records (files don't exist — decode will fail fast)
         for _ in 0..<3 {
             let r = ImageRecord(context: ctx)
             r.id = UUID()
             r.filePath = "/tmp/nonexistent_\(UUID().uuidString).jpg"
-            r.processState = "pending"
+            r.processState = ProcessState.pending
             r.decodeError = false
             r.cullRejected = false
             r.session = session
@@ -25,18 +25,16 @@ final class ProcessingQueueTests: XCTestCase {
         try ctx.save()
 
         let queue = ProcessingQueue(context: ctx)
-        // Cancel immediately
         let task = Task {
             try await queue.process(sessionID: session.objectID)
         }
         task.cancel()
         try? await task.value
 
-        // All records should be in a valid terminal or interrupted state
         let fetchRequest = ImageRecord.fetchRequest()
         let records = try ctx.fetch(fetchRequest)
         for record in records {
-            let validStates = ["pending", "done", "interrupted"]
+            let validStates = [ProcessState.pending, ProcessState.done, ProcessState.interrupted]
             XCTAssertTrue(validStates.contains(record.processState ?? ""),
                           "Unexpected state: \(record.processState ?? "nil")")
         }
@@ -48,21 +46,24 @@ final class ProcessingQueueTests: XCTestCase {
         session.id = UUID()
         session.createdAt = Date()
         session.folderPath = "/tmp"
+        // Add one record so process() reaches fetchOrCreateConfig
+        let r = ImageRecord(context: ctx)
+        r.id = UUID()
+        r.filePath = "/tmp/nonexistent.jpg"
+        r.processState = ProcessState.pending
+        r.session = session
         try ctx.save()
 
         let queue = ProcessingQueue(context: ctx)
-        // Run process — will fail on model prep (no network) but config gets created
         try? await queue.process(sessionID: session.objectID)
 
         let req = ModelConfig.fetchRequest()
         let configs = try ctx.fetch(req)
-        // Config should have been created
+        XCTAssertFalse(configs.isEmpty, "fetchOrCreateConfig should always create a config")
         if let config = configs.first {
-            XCTAssertEqual(config.clipWeight, 0.5)
-            XCTAssertEqual(config.aestheticWeight, 0.5)
-            XCTAssertEqual(config.blurThreshold, 5000.0)
+            XCTAssertEqual(config.blurThreshold, 500.0)
+            XCTAssertEqual(config.earThreshold, 0.15)
+            XCTAssertEqual(config.exposureLeniency, 0.95)
         }
-        // Note: config may not exist if process() returned before fetchOrCreateConfig
-        // was called (e.g., empty session). That's OK — test is best-effort.
     }
 }

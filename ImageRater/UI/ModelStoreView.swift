@@ -4,6 +4,7 @@ import SwiftUI
 struct ModelStoreView: View {
     @State private var status: String = "Ready"
     @State private var isDownloading = false
+    @State private var downloadProgress: Double = 0
     @State private var errorMessage: String?
     @State private var installedModels: [String] = []
 
@@ -40,8 +41,11 @@ struct ModelStoreView: View {
                     Task { await downloadModels() }
                 }
                 .disabled(isDownloading)
+            }
 
-                if isDownloading { ProgressView().scaleEffect(0.7) }
+            if isDownloading {
+                ProgressView(value: downloadProgress)
+                    .progressViewStyle(.linear)
             }
 
             Text(status).font(.caption).foregroundColor(.secondary)
@@ -72,11 +76,13 @@ struct ModelStoreView: View {
 
     @MainActor private func downloadModels() async {
         isDownloading = true
+        downloadProgress = 0
         errorMessage = nil
         do {
-            try await ModelStore.shared.prepareModels { msg in
-                Task { @MainActor in status = msg }
-            }
+            try await ModelStore.shared.prepareModels(
+                progress: { msg in Task { @MainActor in status = msg } },
+                downloadProgress: { p in Task { @MainActor in downloadProgress = p } }
+            )
             status = "Models ready."
         } catch {
             errorMessage = error.localizedDescription

@@ -188,8 +188,8 @@ def to_coreml(traced_model, output_name: str, save_path: Path):
             color_layout=ct.colorlayout.RGB,     # coremltools 8+: no ARGB support
         )],
         outputs=[ct.TensorType(name=output_name)],
-        minimum_deployment_target=ct.target.macOS14,
-        compute_units=ct.ComputeUnit.CPU_AND_NE,
+        minimum_deployment_target=ct.target.macOS15,
+        compute_units=ct.ComputeUnit.ALL,
         convert_to="mlprogram",
     )
     mlmodel.save(str(save_path))

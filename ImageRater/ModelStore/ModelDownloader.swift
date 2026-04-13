@@ -9,6 +9,21 @@ enum ModelStoreError: Error {
     case unzipFailed
 }
 
+private final class ProgressDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    let onProgress: @Sendable (Double) -> Void
+    init(onProgress: @escaping @Sendable (Double) -> Void) { self.onProgress = onProgress }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didWriteData _: Int64, totalBytesWritten: Int64,
+                    totalBytesExpectedToWrite: Int64) {
+        guard totalBytesExpectedToWrite > 0 else { return }
+        onProgress(Double(totalBytesWritten) / Double(totalBytesExpectedToWrite))
+    }
+
+    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
+                    didFinishDownloadingTo _: URL) {}
+}
+
 enum ModelDownloader {
 
     /// SHA-256 of in-memory data. Used for small payloads (manifests, test data).
@@ -42,7 +57,7 @@ enum ModelDownloader {
     }
 
     /// Download from URL, verify SHA-256, return temp file URL. Retries 3× with exponential backoff.
-    static func download(from url: URL, expectedSHA256: String) async throws -> URL {
+    static func download(from url: URL, expectedSHA256: String, onProgress: (@Sendable (Double) -> Void)? = nil) async throws -> URL {
         var lastError: Error = ModelStoreError.downloadFailed
         for attempt in 0..<4 {
             if attempt > 0 {
@@ -50,7 +65,8 @@ enum ModelDownloader {
                 try await Task.sleep(nanoseconds: delay)
             }
             do {
-                let (zipURL, _) = try await URLSession.shared.download(from: url)
+                let delegate = onProgress.map { ProgressDelegate(onProgress: $0) }
+                let (zipURL, _) = try await URLSession.shared.download(from: url, delegate: delegate)
                 guard (try? verify(fileAt: zipURL, expectedSHA256: expectedSHA256)) == true else {
                     throw ModelStoreError.checksumMismatch
                 }

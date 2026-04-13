@@ -7,6 +7,7 @@ enum ImageImporter {
         .union(["jpg", "jpeg", "png", "tiff", "tif", "heic", "heif"])
 
     /// Scan folder, create Session + ImageRecord entities in context, return Session objectID.
+    /// Must be called on `context`'s queue (wrap in `context.performAndWait {}` from other threads).
     @discardableResult
     static func importFolder(_ url: URL,
                               context: NSManagedObjectContext) throws -> NSManagedObjectID {

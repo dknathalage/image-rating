@@ -27,6 +27,6 @@
         <attribute name="aestheticWeight" optional="NO" attributeType="Float" defaultValueString="0.5" usesScalarValueType="YES"/>
         <attribute name="blurThreshold" optional="NO" attributeType="Float" defaultValueString="50.0" usesScalarValueType="YES"/>
         <attribute name="earThreshold" optional="NO" attributeType="Float" defaultValueString="0.2" usesScalarValueType="YES"/>
-        <attribute name="exposureThreshold" optional="NO" attributeType="Float" defaultValueString="0.9" usesScalarValueType="YES"/>
+        <attribute name="exposureLeniency" optional="NO" attributeType="Float" defaultValueString="0.9" usesScalarValueType="YES"/>
     </entity>
 </model>

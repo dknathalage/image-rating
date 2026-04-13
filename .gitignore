@@ -1,11 +1,16 @@
 # Python
 scripts/.venv/
+scripts/.venv-nima/
 .venv/
 scripts/__pycache__/
 *.pyc
 
+# NIMA weights (downloaded during conversion, not committed)
+scripts/nima_weights/
+scripts/aesthetic_weights.pth
+
 # Models (distributed via GitHub Releases, not committed)
-models/
+/models/
 *.mlpackage
 *.mlpackage.zip
 

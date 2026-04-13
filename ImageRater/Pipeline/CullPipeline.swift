@@ -1,6 +1,9 @@
 import CoreImage
 import Vision
 import Foundation
+import OSLog
+
+private let log = Logger(subsystem: "com.imagerating", category: "CullPipeline")
 
 // CullResult and CullReason are defined in ImageRater/Models/CullResult.swift
 
@@ -8,15 +11,27 @@ enum CullPipeline {
 
     private static let ciContext = CIContext()
 
-    // MARK: - Blur Detection (Laplacian variance)
+    // MARK: - Blur Detection (Sobel edge variance)
 
-    /// Returns .reject(.blurry) if Laplacian variance below threshold, else .keep
+    /// Returns .reject(.blurry) if Sobel edge variance below threshold, else .keep.
+    /// Downsamples to 512px on the long edge so threshold is resolution-independent.
     static func checkBlur(image: CGImage, threshold: Float) -> CullResult {
         let ci = CIImage(cgImage: image)
-        let gray = ci.applyingFilter("CIColorControls", parameters: ["inputSaturation": 0.0])
-        let laplacian = gray.applyingFilter("CIEdgeWork", parameters: ["inputRadius": 1.0])
-        guard let variance = computeVariance(of: laplacian) else { return .keep }
-        return variance < threshold ? .reject(.blurry) : .keep
+        let long = Double(max(image.width, image.height))
+        let scale = min(1.0, 512.0 / long)
+        let scaled = scale < 1.0 ? ci.transformed(by: .init(scaleX: scale, y: scale)) : ci
+        let gray = scaled.applyingFilter("CIColorControls", parameters: [kCIInputSaturationKey: 0.0])
+        let edges = gray.applyingFilter("CIEdges", parameters: [kCIInputIntensityKey: 2.0])
+        guard let variance = computeVariance(of: edges) else {
+            log.warning("Blur variance compute failed — keeping image")
+            return .keep
+        }
+        log.debug("Blur variance: \(variance, format: .fixed(precision: 1)) (threshold \(threshold))")
+        if variance < threshold {
+            log.info("Rejected blurry: variance \(variance, format: .fixed(precision: 1)) < \(threshold)")
+            return .reject(.blurry)
+        }
+        return .keep
     }
 
     // MARK: - Exposure Analysis (histogram)
@@ -56,27 +71,40 @@ enum CullPipeline {
         let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
         let request = VNDetectFaceLandmarksRequest()
         try? handler.perform([request])
-        guard let faces = request.results, !faces.isEmpty else { return .keep }
+        guard let faces = request.results, !faces.isEmpty else {
+            log.debug("No faces detected")
+            return .keep
+        }
+        log.debug("\(faces.count) face(s) detected")
         for face in faces {
             guard let landmarks = face.landmarks else { continue }
             if let leftEye = landmarks.leftEye {
                 let pts = landmarkPoints(leftEye, in: face.boundingBox)
-                if eyeAspectRatio(points: pts) < earThreshold { return .reject(.eyesClosed) }
+                let ear = eyeAspectRatio(points: pts)
+                log.debug("Left EAR: \(ear, format: .fixed(precision: 3)) (threshold \(earThreshold))")
+                if ear < earThreshold {
+                    log.info("Rejected eyes-closed: left EAR \(ear, format: .fixed(precision: 3))")
+                    return .reject(.eyesClosed)
+                }
             }
             if let rightEye = landmarks.rightEye {
                 let pts = landmarkPoints(rightEye, in: face.boundingBox)
-                if eyeAspectRatio(points: pts) < earThreshold { return .reject(.eyesClosed) }
+                let ear = eyeAspectRatio(points: pts)
+                log.debug("Right EAR: \(ear, format: .fixed(precision: 3)) (threshold \(earThreshold))")
+                if ear < earThreshold {
+                    log.info("Rejected eyes-closed: right EAR \(ear, format: .fixed(precision: 3))")
+                    return .reject(.eyesClosed)
+                }
             }
         }
         return .keep
     }
 
-    /// Full cull — runs all checks, returns first rejection found.
+    /// Full cull — blur then eyes-closed. Exposure check removed: bright sky/snow/backlight
+    /// trips it constantly, and the rating models score exposure quality more reliably.
     static func cull(image: CGImage, blurThreshold: Float, earThreshold: Float, exposureLeniency: Float) async -> CullResult {
         let blurResult = checkBlur(image: image, threshold: blurThreshold)
         if blurResult.rejected { return blurResult }
-        let exposureResult = checkExposure(image: image, exposureLeniency: exposureLeniency)
-        if exposureResult.rejected { return exposureResult }
         return await checkEyesClosed(cgImage: image, earThreshold: earThreshold)
     }
 

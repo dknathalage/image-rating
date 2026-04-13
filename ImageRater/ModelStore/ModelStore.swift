@@ -1,5 +1,8 @@
 import CoreML
 import Foundation
+import OSLog
+
+private let log = Logger(subsystem: "com.imagerating", category: "ModelStore")
 
 actor ModelStore {
     static let shared = ModelStore()
@@ -15,7 +18,10 @@ actor ModelStore {
     }
 
     /// Ensure all required models are present and checksum-verified. Re-downloads if missing or corrupt.
-    func prepareModels(progress: @escaping (String) -> Void) async throws {
+    func prepareModels(
+        progress: @escaping @Sendable (String) -> Void,
+        downloadProgress: (@Sendable (Double) -> Void)? = nil
+    ) async throws {
         let manifest = try await ManifestFetcher.fetch()
         for entry in manifest.models {
             let dest = modelsDir.appendingPathComponent("\(entry.name)-\(entry.version).mlpackage")
@@ -50,7 +56,7 @@ actor ModelStore {
             }
             if needsDownload {
                 progress("Downloading \(entry.name)…")
-                let tmp = try await ModelDownloader.download(from: entry.url, expectedSHA256: entry.sha256)
+                let tmp = try await ModelDownloader.download(from: entry.url, expectedSHA256: entry.sha256, onProgress: downloadProgress)
                 do {
                     try FileManager.default.moveItem(at: tmp, to: dest)
                 } catch {
@@ -71,12 +77,22 @@ actor ModelStore {
         if let cached = loadedModels[name] { return cached }
         guard let url = try? FileManager.default.contentsOfDirectory(
             at: modelsDir, includingPropertiesForKeys: nil
-        ).first(where: { $0.lastPathComponent.hasPrefix(name) }) else {
+        ).first(where: { $0.pathExtension == "mlpackage" && $0.lastPathComponent.hasPrefix(name) }) else {
             throw ModelStoreError.modelNotFound(name)
         }
-        let config = MLModelConfiguration()
-        config.computeUnits = isAppleSilicon ? .cpuAndNeuralEngine : .cpuOnly
-        let mlModel = try MLModel(contentsOf: url, configuration: config)
+        // .mlpackage must be compiled before loading; cache the .mlmodelc next to the package
+        let compiledURL = url.deletingPathExtension().appendingPathExtension("mlmodelc")
+        if !FileManager.default.fileExists(atPath: compiledURL.path) {
+            log.info("Compiling \(name) model — first run only")
+            let tmp = try MLModel.compileModel(at: url)
+            try FileManager.default.moveItem(at: tmp, to: compiledURL)
+            log.info("Compiled \(name) → \(compiledURL.lastPathComponent)")
+        } else {
+            log.debug("Using cached compiled model: \(compiledURL.lastPathComponent)")
+        }
+        log.info("Loading \(name) model")
+        let mlModel = try loadModel(at: compiledURL)
+        log.info("Loaded \(name) model successfully")
         loadedModels[name] = mlModel
         return mlModel
     }
@@ -95,6 +111,9 @@ actor ModelStore {
             try "local".write(to: sidecar, atomically: true, encoding: .utf8)
         }.value
         loadedModels.removeValue(forKey: name)
+        // Invalidate compiled cache so it's recompiled from the new package
+        let compiledURL = dest.deletingPathExtension().appendingPathExtension("mlmodelc")
+        try? FileManager.default.removeItem(at: compiledURL)
     }
 
     /// Returns display names of all .mlpackage files in the models directory.
@@ -109,6 +128,21 @@ actor ModelStore {
     }
 
     // MARK: Private
+
+    /// Try preferred compute units; fall back to cpuOnly if exec-plan build fails (error -14).
+    private func loadModel(at url: URL) throws -> MLModel {
+        let preferred = MLModelConfiguration()
+        preferred.computeUnits = isAppleSilicon ? .all : .cpuOnly
+        log.debug("Attempting load with computeUnits=\(self.isAppleSilicon ? "all" : "cpuOnly")")
+        do {
+            return try MLModel(contentsOf: url, configuration: preferred)
+        } catch let err as NSError where isAppleSilicon && err.code == -14 {
+            log.warning("Exec-plan build failed (code -14) — falling back to cpuOnly")
+            let fallback = MLModelConfiguration()
+            fallback.computeUnits = .cpuOnly
+            return try MLModel(contentsOf: url, configuration: fallback)
+        }
+    }
 
     private var isAppleSilicon: Bool {
         var sysinfo = utsname()
