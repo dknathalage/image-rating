@@ -58,6 +58,12 @@ final class CullPipelineTests: XCTestCase {
         XCTAssertGreaterThan(ear, 0.2)
     }
 
+    func testEARWithWrongPointCountReturnsOne() {
+        let pts = [CGPoint(x: 0, y: 0), CGPoint(x: 1, y: 0)] // only 2 points
+        let ear = CullPipeline.eyeAspectRatio(points: pts)
+        XCTAssertEqual(ear, 1.0) // guard returns 1.0 (open eye) on wrong count
+    }
+
     // MARK: Helpers
 
     private func makeGradientImage(size: CGSize) -> CGImage {

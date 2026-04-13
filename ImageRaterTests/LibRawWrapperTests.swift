@@ -6,7 +6,8 @@ final class LibRawWrapperTests: XCTestCase {
     func testDecodeJPEGReturnsCGImage() throws {
         // Use a known JPEG fixture from the test bundle
         guard let url = Bundle(for: Self.self).url(forResource: "sharp", withExtension: "jpg") else {
-            throw XCTSkip("sharp.jpg fixture not found — add it to ImageRaterTests/Fixtures/")
+            XCTFail("sharp.jpg fixture not found — add it to ImageRaterTests/Fixtures/")
+            return
         }
         let result = LibRawWrapper.decode(url: url)
         XCTAssertNotNil(result)

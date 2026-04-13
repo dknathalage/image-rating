@@ -6,6 +6,8 @@ import Foundation
 
 enum CullPipeline {
 
+    private static let ciContext = CIContext()
+
     // MARK: - Blur Detection (Laplacian variance)
 
     /// Returns .reject(.blurry) if Laplacian variance below threshold, else .keep
@@ -92,7 +94,7 @@ enum CullPipeline {
     }
 
     private static func computeVariance(of image: CIImage) -> Float? {
-        let context = CIContext()
+        let context = ciContext
         let extent = image.extent
         guard let cgImg = context.createCGImage(image, from: extent) else { return nil }
         let width = cgImg.width, height = cgImg.height
@@ -117,7 +119,7 @@ enum CullPipeline {
             "inputScale": 1.0
         ])
         guard let output = filter?.outputImage else { return nil }
-        let context = CIContext()
+        let context = ciContext
         var data = [Float](repeating: 0, count: binCount * 4)
         context.render(output, toBitmap: &data,
                        rowBytes: binCount * 4 * MemoryLayout<Float>.size,
