@@ -8,11 +8,20 @@
 
 /* Begin PBXBuildFile section */
 		160FE7872D2B8803590A215D /* ImageRaterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B4C6A2E1C2B71C70F55AE87 /* ImageRaterTests.swift */; };
+		2C7D6D6E24B1665B4EA2522B /* sharp.jpg in Resources */ = {isa = PBXBuildFile; fileRef = 59427D413B63AF5B07BACF9F /* sharp.jpg */; };
+		309F86F515ECCB91E16E07A6 /* CullPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BA85CE95545757BDA458D16 /* CullPipeline.swift */; };
+		34458FAAB550B6CD2E385B38 /* MetadataWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8A89F521A3965A61370398E /* MetadataWriter.swift */; };
 		35EE8069B023B37EDE7D0BD1 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF25761D06703B84F56CF4F1 /* ContentView.swift */; };
+		418EBE7BC16843054DBDE888 /* LibRawWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1D62592AA878A621F6A969 /* LibRawWrapper.swift */; };
+		55996786456F392BB67EB921 /* CullResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6B5DF8555A058D7C6902BD4 /* CullResult.swift */; };
+		617796D07A10409D05E87519 /* RatingResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 037E9085D3A94F4FD0ADFF72 /* RatingResult.swift */; };
 		64F5C1B3E1549F95C4437ECF /* ImageRater.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = E4EC119722BC5ED9AFDD7CB7 /* ImageRater.xcdatamodeld */; };
+		7C131D2EB312D83B95AF5CEF /* MetadataWriterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D037073964B87A0F24A93C65 /* MetadataWriterTests.swift */; };
 		86D313E2F76C9ECE3D72D259 /* ImageRaterApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F46B8A2612176D53E2D10AC0 /* ImageRaterApp.swift */; };
 		8D606E26FCAD4F580900C3F1 /* LibRawBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = E4BD04A90265A02C56519149 /* LibRawBridge.mm */; };
+		A0D0B144EA082C4006A61E10 /* LibRawWrapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11B85272F1A7E64C99FFACED /* LibRawWrapperTests.swift */; };
 		CA5785B4173C08BDF61F4985 /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E8B9EAC1E6A2D9973B2B125 /* PersistenceController.swift */; };
+		E0B6EF5741A3AFCB382F26A8 /* CullPipelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F52DFF241767600BD466630B /* CullPipelineTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -26,16 +35,25 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		037E9085D3A94F4FD0ADFF72 /* RatingResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RatingResult.swift; sourceTree = "<group>"; };
+		11B85272F1A7E64C99FFACED /* LibRawWrapperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibRawWrapperTests.swift; sourceTree = "<group>"; };
 		2448FED23B6F6281DA84D6E3 /* ImageRater-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "ImageRater-Bridging-Header.h"; sourceTree = "<group>"; };
+		3BA85CE95545757BDA458D16 /* CullPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CullPipeline.swift; sourceTree = "<group>"; };
+		59427D413B63AF5B07BACF9F /* sharp.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = sharp.jpg; sourceTree = "<group>"; };
 		6B4C6A2E1C2B71C70F55AE87 /* ImageRaterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageRaterTests.swift; sourceTree = "<group>"; };
 		7E8B9EAC1E6A2D9973B2B125 /* PersistenceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
+		8A1D62592AA878A621F6A969 /* LibRawWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibRawWrapper.swift; sourceTree = "<group>"; };
 		927C8C97DBC631094FF48BFB /* ImageRater.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = ImageRater.xcdatamodel; sourceTree = "<group>"; };
+		A8A89F521A3965A61370398E /* MetadataWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetadataWriter.swift; sourceTree = "<group>"; };
 		BF25761D06703B84F56CF4F1 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		C0826FF0FD240A117CCB4035 /* ImageRater.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ImageRater.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D037073964B87A0F24A93C65 /* MetadataWriterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetadataWriterTests.swift; sourceTree = "<group>"; };
 		DBBBBFAB15DAF73F94977A2F /* ImageRaterTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ImageRaterTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		E4BD04A90265A02C56519149 /* LibRawBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = LibRawBridge.mm; sourceTree = "<group>"; };
 		F1A364EC9D90695AE4717555 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		F46B8A2612176D53E2D10AC0 /* ImageRaterApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageRaterApp.swift; sourceTree = "<group>"; };
+		F52DFF241767600BD466630B /* CullPipelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CullPipelineTests.swift; sourceTree = "<group>"; };
+		F6B5DF8555A058D7C6902BD4 /* CullResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CullResult.swift; sourceTree = "<group>"; };
 		FD4392FCA13C79B275636586 /* LibRawBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LibRawBridge.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -63,14 +81,36 @@
 			children = (
 				FD4392FCA13C79B275636586 /* LibRawBridge.h */,
 				E4BD04A90265A02C56519149 /* LibRawBridge.mm */,
+				8A1D62592AA878A621F6A969 /* LibRawWrapper.swift */,
 			);
 			path = LibRaw;
+			sourceTree = "<group>";
+		};
+		51244A4F04AC535C2E78FBE2 /* Pipeline */ = {
+			isa = PBXGroup;
+			children = (
+				3BA85CE95545757BDA458D16 /* CullPipeline.swift */,
+			);
+			path = Pipeline;
+			sourceTree = "<group>";
+		};
+		6167E9C8B540F1FB87BA401A /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				F6B5DF8555A058D7C6902BD4 /* CullResult.swift */,
+				037E9085D3A94F4FD0ADFF72 /* RatingResult.swift */,
+			);
+			path = Models;
 			sourceTree = "<group>";
 		};
 		8DC33B1982BAD5D719CA4AAE /* ImageRaterTests */ = {
 			isa = PBXGroup;
 			children = (
+				F52DFF241767600BD466630B /* CullPipelineTests.swift */,
 				6B4C6A2E1C2B71C70F55AE87 /* ImageRaterTests.swift */,
+				11B85272F1A7E64C99FFACED /* LibRawWrapperTests.swift */,
+				D037073964B87A0F24A93C65 /* MetadataWriterTests.swift */,
+				9D86C094E595199A7C2338EA /* Fixtures */,
 			);
 			path = ImageRaterTests;
 			sourceTree = "<group>";
@@ -82,9 +122,28 @@
 				F1A364EC9D90695AE4717555 /* Info.plist */,
 				0A48F36188980E36C22FB89B /* App */,
 				C4532BF6B6C39EBD7129D03B /* CoreData */,
+				A566978C664A93A2BC663FEC /* Export */,
 				184BC2044D8AAD52B2913126 /* LibRaw */,
+				6167E9C8B540F1FB87BA401A /* Models */,
+				51244A4F04AC535C2E78FBE2 /* Pipeline */,
 			);
 			path = ImageRater;
+			sourceTree = "<group>";
+		};
+		9D86C094E595199A7C2338EA /* Fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				59427D413B63AF5B07BACF9F /* sharp.jpg */,
+			);
+			path = Fixtures;
+			sourceTree = "<group>";
+		};
+		A566978C664A93A2BC663FEC /* Export */ = {
+			isa = PBXGroup;
+			children = (
+				A8A89F521A3965A61370398E /* MetadataWriter.swift */,
+			);
+			path = Export;
 			sourceTree = "<group>";
 		};
 		BE2E09ED1CB9D752AD4BDF75 /* Products */ = {
@@ -113,6 +172,7 @@
 			buildConfigurationList = FA2F708DE7F4A8981D56029F /* Build configuration list for PBXNativeTarget "ImageRaterTests" */;
 			buildPhases = (
 				45E44DA3DABD302F3561F14C /* Sources */,
+				BDACDF12A5B3F025C2D19111 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -177,12 +237,26 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		BDACDF12A5B3F025C2D19111 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2C7D6D6E24B1665B4EA2522B /* sharp.jpg in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXSourcesBuildPhase section */
 		45E44DA3DABD302F3561F14C /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E0B6EF5741A3AFCB382F26A8 /* CullPipelineTests.swift in Sources */,
 				160FE7872D2B8803590A215D /* ImageRaterTests.swift in Sources */,
+				A0D0B144EA082C4006A61E10 /* LibRawWrapperTests.swift in Sources */,
+				7C131D2EB312D83B95AF5CEF /* MetadataWriterTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -191,10 +265,15 @@
 			buildActionMask = 2147483647;
 			files = (
 				35EE8069B023B37EDE7D0BD1 /* ContentView.swift in Sources */,
+				309F86F515ECCB91E16E07A6 /* CullPipeline.swift in Sources */,
+				55996786456F392BB67EB921 /* CullResult.swift in Sources */,
 				64F5C1B3E1549F95C4437ECF /* ImageRater.xcdatamodeld in Sources */,
 				86D313E2F76C9ECE3D72D259 /* ImageRaterApp.swift in Sources */,
 				8D606E26FCAD4F580900C3F1 /* LibRawBridge.mm in Sources */,
+				418EBE7BC16843054DBDE888 /* LibRawWrapper.swift in Sources */,
+				34458FAAB550B6CD2E385B38 /* MetadataWriter.swift in Sources */,
 				CA5785B4173C08BDF61F4985 /* PersistenceController.swift in Sources */,
+				617796D07A10409D05E87519 /* RatingResult.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -278,6 +357,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -296,11 +376,14 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				HEADER_SEARCH_PATHS = /opt/homebrew/include;
 				INFOPLIST_FILE = ImageRater/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = /opt/homebrew/lib;
+				OTHER_LDFLAGS = "-lraw";
 				PRODUCT_BUNDLE_IDENTIFIER = com.imageRater.ImageRater;
 				SDKROOT = macosx;
 			};
@@ -311,6 +394,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -329,11 +413,14 @@
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
+				HEADER_SEARCH_PATHS = /opt/homebrew/include;
 				INFOPLIST_FILE = ImageRater/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = /opt/homebrew/lib;
+				OTHER_LDFLAGS = "-lraw";
 				PRODUCT_BUNDLE_IDENTIFIER = com.imageRater.ImageRater;
 				SDKROOT = macosx;
 			};

@@ -27,16 +27,22 @@ targets:
         INFOPLIST_FILE: ImageRater/Info.plist
         CODE_SIGN_STYLE: Automatic
         ENABLE_HARDENED_RUNTIME: YES
+        OTHER_LDFLAGS: "-lraw"
+        HEADER_SEARCH_PATHS: "/opt/homebrew/include"
+        LIBRARY_SEARCH_PATHS: "/opt/homebrew/lib"
     dependencies: []
   ImageRaterTests:
     type: bundle.unit-test
     platform: macOS
     sources:
       - path: ImageRaterTests
+    resources:
+      - ImageRaterTests/Fixtures
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.imageRater.ImageRaterTests
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/ImageRater.app/Contents/MacOS/ImageRater"
+        GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: ImageRater
 schemes:
