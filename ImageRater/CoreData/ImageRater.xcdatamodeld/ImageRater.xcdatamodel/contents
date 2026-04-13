@@ -8,21 +8,21 @@
     </entity>
     <entity name="ImageRecord" representedClassName="ImageRecord" syncable="YES" codeGenerationType="class">
         <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
-        <attribute name="filePath" optional="YES" attributeType="String"/>
+        <attribute name="filePath" optional="NO" attributeType="String"/>
         <attribute name="thumbHash" optional="YES" attributeType="String"/>
         <attribute name="processState" optional="NO" attributeType="String" defaultValueString="pending"/>
         <attribute name="decodeError" optional="NO" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="cullRejected" optional="NO" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <attribute name="cullReason" optional="YES" attributeType="String"/>
-        <attribute name="ratingStars" optional="NO" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
-        <attribute name="clipScore" optional="NO" attributeType="Float" defaultValueString="0" usesScalarValueType="YES"/>
-        <attribute name="aestheticScore" optional="NO" attributeType="Float" defaultValueString="0" usesScalarValueType="YES"/>
-        <attribute name="userOverride" optional="NO" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="ratingStars" optional="YES" attributeType="Integer 16" usesScalarValueType="NO"/>
+        <attribute name="clipScore" optional="YES" attributeType="Float" usesScalarValueType="NO"/>
+        <attribute name="aestheticScore" optional="YES" attributeType="Float" usesScalarValueType="NO"/>
+        <attribute name="userOverride" optional="YES" attributeType="Integer 16" usesScalarValueType="NO"/>
         <relationship name="session" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="Session" inverseName="images" inverseEntity="Session"/>
     </entity>
     <entity name="ModelConfig" representedClassName="ModelConfig" syncable="YES" codeGenerationType="class">
         <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
-        <attribute name="modelName" optional="YES" attributeType="String"/>
+        <attribute name="modelName" optional="NO" attributeType="String"/>
         <attribute name="clipWeight" optional="NO" attributeType="Float" defaultValueString="0.5" usesScalarValueType="YES"/>
         <attribute name="aestheticWeight" optional="NO" attributeType="Float" defaultValueString="0.5" usesScalarValueType="YES"/>
         <attribute name="blurThreshold" optional="NO" attributeType="Float" defaultValueString="50.0" usesScalarValueType="YES"/>
