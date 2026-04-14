@@ -7,6 +7,14 @@ private let log = Logger(subsystem: "com.imagerating", category: "CullPipeline")
 
 // CullResult and CullReason are defined in ImageRater/Models/CullResult.swift
 
+/// Combined output of the cull pipeline: accept/reject decision + numeric quality scores.
+struct CullScores {
+    let result: CullResult       // accept/reject with optional reason
+    let blurScore: Float         // Sobel edge variance; higher = sharper; maps to ImageRecord.blurScore
+    let exposureScore: Float     // EV bias float: 0.0=neutral, positive=over, negative=under;
+                                 // maps to ImageRecord.exposureScore
+}
+
 enum CullPipeline {
 
     private static let ciContext = CIContext()
@@ -15,7 +23,7 @@ enum CullPipeline {
 
     /// Returns .reject(.blurry) if Sobel edge variance below threshold, else .keep.
     /// Downsamples to 512px on the long edge so threshold is resolution-independent.
-    static func checkBlur(image: CGImage, threshold: Float) -> CullResult {
+    static func checkBlur(image: CGImage, threshold: Float) -> (result: CullResult, variance: Float) {
         let ci = CIImage(cgImage: image)
         let long = Double(max(image.width, image.height))
         let scale = min(1.0, 512.0 / long)
@@ -24,34 +32,42 @@ enum CullPipeline {
         let edges = gray.applyingFilter("CIEdges", parameters: [kCIInputIntensityKey: 2.0])
         guard let variance = computeVariance(of: edges) else {
             log.warning("Blur variance compute failed — keeping image")
-            return .keep
+            return (result: .keep, variance: 0)
         }
         log.debug("Blur variance: \(variance, format: .fixed(precision: 1)) (threshold \(threshold))")
-        if variance < threshold {
+        let result: CullResult = variance < threshold ? .reject(.blurry) : .keep
+        if result.rejected {
             log.info("Rejected blurry: variance \(variance, format: .fixed(precision: 1)) < \(threshold)")
-            return .reject(.blurry)
         }
-        return .keep
+        return (result: result, variance: variance)
     }
 
     // MARK: - Exposure Analysis (histogram)
 
     /// Returns .reject(.overexposed/.underexposed) if >10% pixels in extreme luminance range
     /// - Parameter exposureLeniency: Higher value = more lenient (0.9 rejects only if >10% pixels are extreme)
-    static func checkExposure(image: CGImage, exposureLeniency: Float) -> CullResult {
+    static func checkExposure(image: CGImage, exposureLeniency: Float) -> (result: CullResult, exposureScore: Float) {
         let ci = CIImage(cgImage: image)
         let gray = ci.applyingFilter("CIColorControls", parameters: ["inputSaturation": 0.0])
         let binCount = 256
-        guard let histogram = computeHistogram(of: gray, binCount: binCount) else { return .keep }
+        guard let histogram = computeHistogram(of: gray, binCount: binCount) else { return (result: .keep, exposureScore: 0) }
         let total = histogram.reduce(0, +)
-        guard total > 0 else { return .keep }
+        guard total > 0 else { return (result: .keep, exposureScore: 0) }
         let topBins = histogram[(binCount - binCount / 20)...].reduce(0, +)
         let bottomBins = histogram[0..<(binCount / 20)].reduce(0, +)
         let topFraction = Float(topBins) / Float(total)
         let bottomFraction = Float(bottomBins) / Float(total)
-        if topFraction > (1.0 - exposureLeniency) { return .reject(.overexposed) }
-        if bottomFraction > (1.0 - exposureLeniency) { return .reject(.underexposed) }
-        return .keep
+        let exposureScore: Float = topFraction - bottomFraction  // positive = over, negative = under
+
+        let result: CullResult
+        if topFraction > (1.0 - exposureLeniency) {
+            result = .reject(.overexposed)
+        } else if bottomFraction > (1.0 - exposureLeniency) {
+            result = .reject(.underexposed)
+        } else {
+            result = .keep
+        }
+        return (result: result, exposureScore: exposureScore)
     }
 
     // MARK: - Eyes Closed (EAR)
@@ -100,12 +116,26 @@ enum CullPipeline {
         return .keep
     }
 
-    /// Full cull — blur then eyes-closed. Exposure check removed: bright sky/snow/backlight
-    /// trips it constantly, and the rating models score exposure quality more reliably.
-    static func cull(image: CGImage, blurThreshold: Float, earThreshold: Float, exposureLeniency: Float) async -> CullResult {
-        let blurResult = checkBlur(image: image, threshold: blurThreshold)
-        if blurResult.rejected { return blurResult }
-        return await checkEyesClosed(cgImage: image, earThreshold: earThreshold)
+    /// Full cull — blur then eyes-closed then exposure. Returns CullScores with numeric quality scores.
+    static func cull(image: CGImage, blurThreshold: Float, earThreshold: Float,
+                     exposureLeniency: Float) async -> CullScores {
+
+        let (blurResult, blurVariance) = checkBlur(image: image, threshold: blurThreshold)
+
+        // Always compute exposure score for UI display, even if already rejected
+        let (exposureResult, exposureScore) = checkExposure(image: image,
+                                                             exposureLeniency: exposureLeniency)
+
+        if blurResult.rejected {
+            return CullScores(result: blurResult, blurScore: blurVariance, exposureScore: exposureScore)
+        }
+
+        let eyeResult = await checkEyesClosed(cgImage: image, earThreshold: earThreshold)
+        if eyeResult.rejected {
+            return CullScores(result: eyeResult, blurScore: blurVariance, exposureScore: exposureScore)
+        }
+
+        return CullScores(result: exposureResult, blurScore: blurVariance, exposureScore: exposureScore)
     }
 
     // MARK: - Private helpers

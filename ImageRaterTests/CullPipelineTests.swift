@@ -1,5 +1,6 @@
 import XCTest
 import CoreImage
+import AppKit
 @testable import ImageRater
 
 final class CullPipelineTests: XCTestCase {
@@ -9,14 +10,14 @@ final class CullPipelineTests: XCTestCase {
     func testSharpImageNotRejectedForBlur() {
         let image = makeGradientImage(size: CGSize(width: 100, height: 100))
         // CIEdges variance for a sharp gradient image is well above 500 (the current threshold)
-        let result = CullPipeline.checkBlur(image: image, threshold: 500.0)
+        let (result, _) = CullPipeline.checkBlur(image: image, threshold: 500.0)
         XCTAssertFalse(result.rejected)
     }
 
     func testBlurryImageRejected() {
         let blurry = makeBlurredImage(size: CGSize(width: 100, height: 100), radius: 20)
         // CIEdges variance for a heavily blurred image is below 500 (the current threshold)
-        let result = CullPipeline.checkBlur(image: blurry, threshold: 500.0)
+        let (result, _) = CullPipeline.checkBlur(image: blurry, threshold: 500.0)
         XCTAssertTrue(result.rejected)
         XCTAssertEqual(result.reason, .blurry)
     }
@@ -25,21 +26,21 @@ final class CullPipelineTests: XCTestCase {
 
     func testOverexposedImageRejected() {
         let white = makeSolidImage(size: CGSize(width: 50, height: 50), gray: 1.0)
-        let result = CullPipeline.checkExposure(image: white, exposureLeniency: 0.9)
+        let (result, _) = CullPipeline.checkExposure(image: white, exposureLeniency: 0.9)
         XCTAssertTrue(result.rejected)
         XCTAssertEqual(result.reason, .overexposed)
     }
 
     func testUnderexposedImageRejected() {
         let black = makeSolidImage(size: CGSize(width: 50, height: 50), gray: 0.0)
-        let result = CullPipeline.checkExposure(image: black, exposureLeniency: 0.9)
+        let (result, _) = CullPipeline.checkExposure(image: black, exposureLeniency: 0.9)
         XCTAssertTrue(result.rejected)
         XCTAssertEqual(result.reason, .underexposed)
     }
 
     func testNormalExposureKept() {
         let mid = makeSolidImage(size: CGSize(width: 50, height: 50), gray: 0.5)
-        let result = CullPipeline.checkExposure(image: mid, exposureLeniency: 0.9)
+        let (result, _) = CullPipeline.checkExposure(image: mid, exposureLeniency: 0.9)
         XCTAssertFalse(result.rejected)
     }
 
@@ -62,6 +63,34 @@ final class CullPipelineTests: XCTestCase {
         let pts = [CGPoint(x: 0, y: 0), CGPoint(x: 1, y: 0)] // only 2 points
         let ear = CullPipeline.eyeAspectRatio(points: pts)
         XCTAssertEqual(ear, 1.0) // guard returns 1.0 (open eye) on wrong count
+    }
+
+    // MARK: CullScores
+
+    func testCullReturnsBlurScoreForSharpImage() async {
+        // A synthetic sharp image (high-frequency checkerboard) → high blurScore
+        let sharp = makeCheckerboardImage(size: 256)
+        let result = await CullPipeline.cull(
+            image: sharp, blurThreshold: 100, earThreshold: 0.15, exposureLeniency: 0.95)
+        XCTAssertGreaterThan(result.blurScore, 0, "Sharp image must have non-zero blurScore")
+    }
+
+    func testCullReturnsMeasurableExposureScoreForWhiteImage() async {
+        let white = makeSolidColorImage(size: 256, color: .white)
+        let result = await CullPipeline.cull(
+            image: white, blurThreshold: 0, earThreshold: 0.15, exposureLeniency: 0.95)
+        // All-white = overexposed → positive exposureScore
+        XCTAssertGreaterThan(result.exposureScore, 0,
+            "All-white image should have positive exposureScore")
+    }
+
+    func testCullReturnsMeasurableExposureScoreForBlackImage() async {
+        let black = makeSolidColorImage(size: 256, color: .black)
+        let result = await CullPipeline.cull(
+            image: black, blurThreshold: 0, earThreshold: 0.15, exposureLeniency: 0.95)
+        // All-black = underexposed → negative exposureScore
+        XCTAssertLessThan(result.exposureScore, 0,
+            "All-black image should have negative exposureScore")
     }
 
     // MARK: Helpers
@@ -103,5 +132,31 @@ final class CullPipelineTests: XCTestCase {
             CGPoint(x: width * 0.66, y: 0.5 - height),
             CGPoint(x: width * 0.33, y: 0.5 - height),
         ]
+    }
+
+    private func makeCheckerboardImage(size: Int) -> CGImage {
+        let bmi = CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.noneSkipFirst.rawValue
+        let ctx = CGContext(data: nil, width: size, height: size, bitsPerComponent: 8,
+                            bytesPerRow: 4 * size, space: CGColorSpaceCreateDeviceRGB(),
+                            bitmapInfo: bmi)!
+        let tileSize = 8
+        for row in 0..<(size / tileSize) {
+            for col in 0..<(size / tileSize) {
+                let isWhite = (row + col) % 2 == 0
+                ctx.setFillColor(isWhite ? CGColor.white : CGColor.black)
+                ctx.fill(CGRect(x: col * tileSize, y: row * tileSize, width: tileSize, height: tileSize))
+            }
+        }
+        return ctx.makeImage()!
+    }
+
+    private func makeSolidColorImage(size: Int, color: NSColor) -> CGImage {
+        let bmi = CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.noneSkipFirst.rawValue
+        let ctx = CGContext(data: nil, width: size, height: size, bitsPerComponent: 8,
+                            bytesPerRow: 4 * size, space: CGColorSpaceCreateDeviceRGB(),
+                            bitmapInfo: bmi)!
+        ctx.setFillColor(color.cgColor)
+        ctx.fill(CGRect(x: 0, y: 0, width: size, height: size))
+        return ctx.makeImage()!
     }
 }
