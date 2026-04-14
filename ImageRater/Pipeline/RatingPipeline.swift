@@ -83,7 +83,7 @@ enum RatingPipeline {
     /// logitScale matches CLIP ViT-B/32's learned temperature (exp(logit_scale) ≈ 100).
     /// Without this, raw cosine similarities (~0.2–0.3) are too small for softmax to
     /// discriminate; all scores collapse to ~0.5.
-    static func clipIQAScore(embedding: [Float], logitScale: Float = 100.0) -> Float {
+    static func clipIQAScore(embedding: [Float], logitScale: Float) -> Float {
         let posPrompts = CLIPTextEmbeddings.positivePrompts
         let negPrompts = CLIPTextEmbeddings.negativePrompts
         precondition(!posPrompts.isEmpty && posPrompts.count == negPrompts.count,

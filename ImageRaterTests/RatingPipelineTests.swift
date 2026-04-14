@@ -36,19 +36,19 @@ final class RatingPipelineTests: XCTestCase {
 
     func testClipIQAGoodPhotoEmbeddingScoresAboveHalf() {
         // Feeding the "Good photo" text embedding to clipIQAScore should strongly prefer "Good photo"
-        let score = RatingPipeline.clipIQAScore(embedding: CLIPTextEmbeddings.goodPhoto)
+        let score = RatingPipeline.clipIQAScore(embedding: CLIPTextEmbeddings.goodPhoto, logitScale: Float(FocalSettings.resolvedClipLogitScale()))
         XCTAssertGreaterThan(score, 0.5, "Good photo embedding should score above 0.5")
     }
 
     func testClipIQABadPhotoEmbeddingScoresBelowHalf() {
         // Feeding the "Bad photo" text embedding should prefer "Bad photo" → low score
-        let score = RatingPipeline.clipIQAScore(embedding: CLIPTextEmbeddings.badPhoto)
+        let score = RatingPipeline.clipIQAScore(embedding: CLIPTextEmbeddings.badPhoto, logitScale: Float(FocalSettings.resolvedClipLogitScale()))
         XCTAssertLessThan(score, 0.5, "Bad photo embedding should score below 0.5")
     }
 
     func testClipIQAScoreIsBoundedZeroToOne() {
         // Softmax output must always be in [0,1]
-        let score = RatingPipeline.clipIQAScore(embedding: CLIPTextEmbeddings.goodPhoto)
+        let score = RatingPipeline.clipIQAScore(embedding: CLIPTextEmbeddings.goodPhoto, logitScale: Float(FocalSettings.resolvedClipLogitScale()))
         XCTAssertGreaterThanOrEqual(score, 0.0)
         XCTAssertLessThanOrEqual(score, 1.0)
     }
