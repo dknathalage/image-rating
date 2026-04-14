@@ -166,7 +166,8 @@ actor ProcessingQueue {
 
         guard !entries.isEmpty else { return }
 
-        let strictness = UserDefaults.standard.double(forKey: "cullStrictness")
+        let storedStrictness = UserDefaults.standard.double(forKey: FocalSettings.cullStrictness)
+        let strictness = storedStrictness == 0 ? FocalSettings.defaultCullStrictness : storedStrictness
 
         // Percentile rank only valid (non-override, non-decode-error) images
         let validIndices = entries.indices.filter { !entries[$0].decodeError && entries[$0].overrideStars == nil }
@@ -183,10 +184,27 @@ actor ProcessingQueue {
         let (aLo, aHi) = minMax(valid.map(\.aes))
         let (cLo, cHi) = minMax(valid.map(\.clip))
 
+        let ud = UserDefaults.standard
+        let wTech = ud.object(forKey: FocalSettings.weightTechnical) != nil
+            ? Float(ud.double(forKey: FocalSettings.weightTechnical))
+            : Float(FocalSettings.defaultWeightTechnical)
+        let wAes = ud.object(forKey: FocalSettings.weightAesthetic) != nil
+            ? Float(ud.double(forKey: FocalSettings.weightAesthetic))
+            : Float(FocalSettings.defaultWeightAesthetic)
+        let wClip = ud.object(forKey: FocalSettings.weightClip) != nil
+            ? Float(ud.double(forKey: FocalSettings.weightClip))
+            : Float(FocalSettings.defaultWeightClip)
+        let wSum = wTech + wAes + wClip
+        let (wTn, wAn, wCn) = wSum > 0
+            ? (wTech/wSum, wAes/wSum, wClip/wSum)
+            : (Float(FocalSettings.defaultWeightTechnical),
+               Float(FocalSettings.defaultWeightAesthetic),
+               Float(FocalSettings.defaultWeightClip))
+
         let validScores: [Float] = valid.map { e in
-            0.4 * norm(e.tech, tLo, tHi) +
-            0.4 * norm(e.aes,  aLo, aHi) +
-            0.2 * norm(e.clip, cLo, cHi)
+            wTn * norm(e.tech, tLo, tHi) +
+            wAn * norm(e.aes,  aLo, aHi) +
+            wCn * norm(e.clip, cLo, cHi)
         }
 
         let percentileRatings = percentileStars(scores: validScores, strictness: strictness)
