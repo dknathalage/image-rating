@@ -5,6 +5,8 @@ import CoreData
 struct RatingFilterView: View {
     let images: [ImageRecord]
     @Binding var ratingFilter: Set<Int>
+    @Environment(\.managedObjectContext) private var ctx
+    @State private var tick: Int = 0
 
     private var ratingCounts: [Int: Int] {
         var counts = [Int: Int]()
@@ -42,5 +44,10 @@ struct RatingFilterView: View {
                 .buttonStyle(.plain)
             }
         }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: .NSManagedObjectContextDidSave, object: ctx
+            )
+        ) { _ in tick += 1 }
     }
 }
