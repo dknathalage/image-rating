@@ -34,7 +34,7 @@ final class ProcessingQueueTests: XCTestCase {
         let fetchRequest = ImageRecord.fetchRequest()
         let records = try ctx.fetch(fetchRequest)
         for record in records {
-            let validStates = [ProcessState.pending, ProcessState.done, ProcessState.interrupted]
+            let validStates = [ProcessState.pending, ProcessState.done, ProcessState.interrupted, ProcessState.rated]
             XCTAssertTrue(validStates.contains(record.processState ?? ""),
                           "Unexpected state: \(record.processState ?? "nil")")
         }

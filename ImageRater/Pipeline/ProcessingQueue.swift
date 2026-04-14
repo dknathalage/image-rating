@@ -9,6 +9,7 @@ enum ProcessState {
     static let pending = "pending"
     static let culling = "culling"
     static let rating = "rating"
+    static let rated = "rated"   // pass 1 complete; diversity scoring pending
     static let done = "done"
     static let interrupted = "interrupted"
 }
@@ -30,10 +31,186 @@ actor ProcessingQueue {
         sessionID: NSManagedObjectID,
         onProgress: (@Sendable (Int, Int, String) -> Void)? = nil
     ) async throws {
-        fatalError("Replaced in Task 5 — do not call until ProcessingQueue is updated")
+
+        let (imageIDs, configSnapshot) = try await context.perform { [self] in
+            guard let session = try? self.context.existingObject(with: sessionID) as? Session,
+                  let images = session.images?.allObjects as? [ImageRecord] else {
+                throw CocoaError(.coreData)
+            }
+            let snapshot = self.fetchOrCreateConfigSync()
+            let sorted = images.sorted { ($0.filePath ?? "") < ($1.filePath ?? "") }
+            return (sorted.map(\.objectID), snapshot)
+        }
+
+        // Load bundled models once before the per-image loop
+        onProgress?(0, 0, "Compiling models…")
+        let models = try RatingPipeline.loadBundledModels()
+
+        let total = imageIDs.count
+        var decodeErrorCount = 0
+        log.info("Session processing started: \(total) images")
+
+        // ─── PASS 1: per-image inference ─────────────────────────────────────
+
+        do {
+            for (i, imageID) in imageIDs.enumerated() {
+                try Task.checkCancellation()
+
+                let (filePath, skip): (String?, Bool) = await context.perform { [self] in
+                    guard let r = try? self.context.existingObject(with: imageID) as? ImageRecord else {
+                        return (nil, true)
+                    }
+                    let skip = r.processState == ProcessState.done
+                            || r.processState == ProcessState.rated
+                    return (r.filePath, skip)
+                }
+                if skip { continue }
+
+                onProgress?(i, total, "Scoring \(i + 1) of \(total)")
+
+                guard let path = filePath,
+                      let cgImage = LibRawWrapper.decode(url: URL(filePath: path)) else {
+                    decodeErrorCount += 1
+                    await context.perform { [self] in
+                        guard let r = try? self.context.existingObject(with: imageID) as? ImageRecord else { return }
+                        r.decodeError = true
+                        r.processState = ProcessState.done
+                        try? self.context.save()
+                    }
+                    continue
+                }
+
+                // Check user override — if set, skip AI rating but still run cull
+                let hasOverride = await context.perform { [self] in
+                    (try? self.context.existingObject(with: imageID) as? ImageRecord)?.userOverride != nil
+                }
+
+                async let cullTask   = CullPipeline.cull(
+                    image: cgImage,
+                    blurThreshold:    configSnapshot.blurThreshold,
+                    earThreshold:     configSnapshot.earThreshold,
+                    exposureLeniency: configSnapshot.exposureLeniency)
+                let ratingResult = hasOverride ? RatingResult.unrated
+                                 : await RatingPipeline.rate(image: cgImage, models: models)
+                let cullScores = await cullTask
+
+                await context.perform { [self] in
+                    guard let r = try? self.context.existingObject(with: imageID) as? ImageRecord else { return }
+                    // Cull fields
+                    r.cullRejected  = cullScores.result.rejected
+                    r.cullReason    = cullScores.result.reason?.rawValue
+                    r.blurScore     = cullScores.blurScore
+                    r.exposureScore = cullScores.exposureScore
+
+                    // Rating fields (only if no user override)
+                    if !hasOverride, case .rated(let scores) = ratingResult {
+                        r.topiqTechnicalScore  = scores.topiqTechnicalScore
+                        r.topiqAestheticScore  = scores.topiqAestheticScore
+                        r.clipIQAScore         = scores.clipIQAScore
+                        r.combinedQualityScore = scores.combinedQualityScore
+                        // Store 512-dim embedding as raw bytes
+                        r.clipEmbedding = scores.clipEmbedding.withUnsafeBufferPointer {
+                            Data(buffer: $0)
+                        }
+                    }
+                    r.processState = ProcessState.rated
+                    try? self.context.save()
+                }
+            }
+        } catch is CancellationError {
+            await markInterrupted(sessionID: sessionID)
+            throw CancellationError()
+        }
+
+        try Task.checkCancellation()
+
+        // ─── PASS 2: session-level diversity + normalization ──────────────────
+
+        onProgress?(total, total, "Ranking variety…")
+        try await runDiversityPass(sessionID: sessionID)
+
+        // Write XMP sidecars now that final star ratings are assigned
+        await writeSidecars(imageIDs: imageIDs, sessionID: sessionID)
+
+        onProgress?(total, total, "Done")
+        log.info("Session complete — \(total) images, \(decodeErrorCount) decode errors")
     }
 
     // MARK: Private
+
+    private func runDiversityPass(sessionID: NSManagedObjectID) async throws {
+        // Load embeddings and quality scores for all rated (or done) images
+        let (imageIDs, embeddings, qualityScores): ([NSManagedObjectID], [[Float]], [Float]) =
+            try await context.perform { [self] in
+                guard let session = try? self.context.existingObject(with: sessionID) as? Session,
+                      let images = session.images?.allObjects as? [ImageRecord] else {
+                    throw CocoaError(.coreData)
+                }
+                let sorted = images
+                    .filter { $0.processState == ProcessState.rated || $0.processState == ProcessState.done }
+                    .sorted { ($0.filePath ?? "") < ($1.filePath ?? "") }
+
+                let ids = sorted.map { $0.objectID }
+                let embs: [[Float]] = sorted.map { r in
+                    guard let data = r.clipEmbedding else { return [Float](repeating: 0, count: 512) }
+                    let count = data.count / MemoryLayout<Float>.size
+                    return data.withUnsafeBytes { Array($0.bindMemory(to: Float.self).prefix(count)) }
+                }
+                let scores = sorted.map { $0.combinedQualityScore }
+                return (ids, embs, scores)
+            }
+
+        guard !imageIDs.isEmpty else { return }
+
+        // Step A: threshold clustering → clusterID
+        let clusterIDs = DiversityScorer.clusterByThreshold(embeddings: embeddings, threshold: 0.92)
+
+        // Step B: MMR ordering → clusterRank + diversityFactor
+        let mmrItems = DiversityScorer.mmrOrder(embeddings: embeddings, qualityScores: qualityScores, lambda: 0.6)
+        let mmrByIdx = Dictionary(uniqueKeysWithValues: mmrItems.map { ($0.originalIndex, $0) })
+
+        // Compute finalScore per image
+        var finalScores = [Float](repeating: 0, count: imageIDs.count)
+        for item in mmrItems {
+            finalScores[item.originalIndex] = qualityScores[item.originalIndex] * item.diversityFactor
+        }
+
+        // Percentile normalisation → star ratings
+        let starRatings = DiversityScorer.percentileToStars(finalScores: finalScores)
+
+        // Write all diversity fields
+        try await context.perform { [self] in
+            for (i, imageID) in imageIDs.enumerated() {
+                guard let r = try? self.context.existingObject(with: imageID) as? ImageRecord else { continue }
+                let mmr = mmrByIdx[i]
+                r.clusterID       = clusterIDs[i]
+                r.clusterRank     = Int32(mmr?.clusterRank ?? 1)
+                r.diversityFactor = mmr?.diversityFactor ?? 1.0
+                r.finalScore      = finalScores[i]
+                r.ratingStars     = NSNumber(value: starRatings[i])
+                r.processState    = ProcessState.done
+            }
+            try self.context.save()
+        }
+    }
+
+    private func writeSidecars(imageIDs: [NSManagedObjectID], sessionID: NSManagedObjectID) async {
+        await context.perform { [self] in
+            for imageID in imageIDs {
+                guard let r = try? self.context.existingObject(with: imageID) as? ImageRecord,
+                      let path = r.filePath else { continue }
+                let stars: Int
+                if let override = r.userOverride, override.int16Value > 0 {
+                    stars = Int(override.int16Value)
+                } else if let s = r.ratingStars {
+                    stars = Int(s.int16Value)
+                } else {
+                    continue
+                }
+                try? MetadataWriter.writeSidecar(stars: stars, for: URL(filePath: path))
+            }
+        }
+    }
 
     private struct ConfigSnapshot {
         let blurThreshold: Float
@@ -84,7 +261,9 @@ extension ProcessingQueue {
             guard let session = try? self.context.existingObject(with: sessionID) as? Session,
                   let images = session.images?.allObjects as? [ImageRecord] else { return }
             for record in images
-            where record.processState == ProcessState.culling || record.processState == ProcessState.rating {
+            where record.processState == ProcessState.culling
+               || record.processState == ProcessState.rating
+               || record.processState == ProcessState.rated {
                 record.processState = ProcessState.interrupted
             }
             try? self.context.save()
