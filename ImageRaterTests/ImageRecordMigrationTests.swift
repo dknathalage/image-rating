@@ -47,7 +47,9 @@ final class ImageRecordMigrationTests: XCTestCase {
         let d = NSPersistentStoreDescription()
         d.type = NSInMemoryStoreType
         c.persistentStoreDescriptions = [d]
-        c.loadPersistentStores { _, e in if let e { XCTFail("\(e)") } }
+        c.loadPersistentStores { _, error in
+            if let error { XCTFail("Failed to load in-memory store: \(error)"); return }
+        }
         return c.viewContext
     }
 }
