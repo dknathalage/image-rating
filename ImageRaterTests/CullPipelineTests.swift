@@ -72,7 +72,7 @@ final class CullPipelineTests: XCTestCase {
         let sharp = makeCheckerboardImage(size: 256)
         let result = await CullPipeline.cull(
             image: sharp, blurThreshold: 100, earThreshold: 0.15, exposureLeniency: 0.95)
-        XCTAssertGreaterThan(result.blurScore, 0, "Sharp image must have non-zero blurScore")
+        XCTAssertGreaterThan(result.blurScore, 100.0, "Sharp checkerboard must have high blurScore")
     }
 
     func testCullReturnsMeasurableExposureScoreForWhiteImage() async {
