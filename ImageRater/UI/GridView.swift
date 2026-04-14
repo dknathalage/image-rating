@@ -35,7 +35,7 @@ struct GridView: View {
     // Viewport dimensions tracked for edge-scroll
     @State private var viewportHeight: CGFloat = 0
     @State private var scrollOffset: CGFloat = 0
-    @State private var autoScrollTimer: Timer?
+    @State private var lastAutoScrollTime: Date = .distantPast
 
     var body: some View {
         if images.isEmpty && !sessionHasImages {
@@ -93,7 +93,6 @@ struct GridView: View {
                             .onChanged { handleDrag($0, proxy: proxy) }
                             .onEnded { _ in
                                 dragRect = nil
-                                stopAutoScroll()
                             }
                     )
                     // Track scroll offset for edge-scroll calculation
@@ -177,7 +176,7 @@ struct GridView: View {
         }
     }
 
-    // MARK: - Rubber band + auto-scroll
+    // MARK: - Rubber band + edge-scroll
 
     private func handleDrag(_ value: DragGesture.Value, proxy: ScrollViewProxy) {
         let s = value.startLocation, c = value.location
@@ -193,39 +192,34 @@ struct GridView: View {
         })
         selectedIDs = mods.contains(.shift) ? selectedIDs.union(hit) : hit
 
-        // Edge-scroll: drag within 40pt of top/bottom triggers auto-scroll
-        let edgeZone: CGFloat = 40
-        // c.y is in "grid" coordinate space (content coords); convert to viewport
+        // Edge-scroll: trigger only when cursor exits the viewport boundary.
+        // Throttled to 1 row per 0.3s. Reads live state each call so targets are fresh.
         let viewportY = c.y - scrollOffset
-        if viewportY < edgeZone {
-            let speed = Double(max(1, edgeZone - viewportY))
-            startAutoScroll(direction: -speed, proxy: proxy)
-        } else if viewportY > viewportHeight - edgeZone {
-            let speed = Double(max(1, viewportY - (viewportHeight - edgeZone)))
-            startAutoScroll(direction: speed, proxy: proxy)
-        } else {
-            stopAutoScroll()
-        }
-    }
+        guard viewportY < 0 || viewportY > viewportHeight else { return }
+        let now = Date()
+        guard now.timeIntervalSince(lastAutoScrollTime) >= 0.3 else { return }
 
-    private func startAutoScroll(direction: Double, proxy: ScrollViewProxy) {
-        stopAutoScroll()
-        autoScrollTimer = Timer.scheduledTimer(withTimeInterval: 0.016, repeats: true) { _ in
-            Task { @MainActor in
-                // Scroll by finding the first/last visible image near the edge
-                let step = direction * 0.5
-                if step < 0, let first = images.first {
-                    proxy.scrollTo(first.objectID, anchor: .top)
-                } else if step > 0, let last = images.last {
-                    proxy.scrollTo(last.objectID, anchor: .bottom)
-                }
+        if viewportY < 0 {
+            // Cursor above viewport — scroll up 1 row: find the row just above the viewport top
+            // and anchor its top to the viewport top.
+            let topY = scrollOffset
+            if let target = cellFrames
+                .filter({ $0.value.maxY < topY })
+                .max(by: { $0.value.minY < $1.value.minY }) {
+                proxy.scrollTo(target.key, anchor: .top)
+                lastAutoScrollTime = now
+            }
+        } else {
+            // Cursor below viewport — scroll down 1 row: find the row just below the viewport
+            // bottom and anchor its bottom to the viewport bottom.
+            let bottomY = scrollOffset + viewportHeight
+            if let target = cellFrames
+                .filter({ $0.value.minY > bottomY })
+                .min(by: { $0.value.minY < $1.value.minY }) {
+                proxy.scrollTo(target.key, anchor: .bottom)
+                lastAutoScrollTime = now
             }
         }
-    }
-
-    private func stopAutoScroll() {
-        autoScrollTimer?.invalidate()
-        autoScrollTimer = nil
     }
 }
 
