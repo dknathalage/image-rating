@@ -199,24 +199,27 @@ struct GridView: View {
         let now = Date()
         guard now.timeIntervalSince(lastAutoScrollTime) >= 0.3 else { return }
 
+        // Row pitch = cell height + LazyVGrid inter-cell spacing.
+        // Target the cell whose top is 1 row above/below the current viewport top,
+        // then use .top anchor so the viewport starts exactly there.
+        let rowPitch = cellSize * 0.6875 + 8
+
         if viewportY < 0 {
-            // Cursor above viewport — scroll up 1 row: find the row just above the viewport top
-            // and anchor its top to the viewport top.
-            let topY = scrollOffset
-            if let target = cellFrames
-                .filter({ $0.value.maxY < topY })
-                .max(by: { $0.value.minY < $1.value.minY }) {
-                proxy.scrollTo(target.key, anchor: .top)
+            // Cursor above viewport — scroll up 1 row.
+            let targetTopY = max(0, scrollOffset - rowPitch)
+            if let best = cellFrames.min(by: {
+                abs($0.value.minY - targetTopY) < abs($1.value.minY - targetTopY)
+            }) {
+                proxy.scrollTo(best.key, anchor: .top)
                 lastAutoScrollTime = now
             }
         } else {
-            // Cursor below viewport — scroll down 1 row: find the row just below the viewport
-            // bottom and anchor its bottom to the viewport bottom.
-            let bottomY = scrollOffset + viewportHeight
-            if let target = cellFrames
-                .filter({ $0.value.minY > bottomY })
-                .min(by: { $0.value.minY < $1.value.minY }) {
-                proxy.scrollTo(target.key, anchor: .bottom)
+            // Cursor below viewport — scroll down 1 row.
+            let targetTopY = scrollOffset + rowPitch
+            if let best = cellFrames.min(by: {
+                abs($0.value.minY - targetTopY) < abs($1.value.minY - targetTopY)
+            }) {
+                proxy.scrollTo(best.key, anchor: .top)
                 lastAutoScrollTime = now
             }
         }
