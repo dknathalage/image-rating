@@ -1,6 +1,6 @@
-name: ImageRater
+name: Focal
 options:
-  bundleIdPrefix: com.imageRater
+  bundleIdPrefix: com.focal
   deploymentTarget:
     macOS: "14.0"
   xcodeVersion: "15"
@@ -11,8 +11,10 @@ settings:
     MACOSX_DEPLOYMENT_TARGET: "14.0"
     SWIFT_OBJC_BRIDGING_HEADER: "ImageRater/ImageRater-Bridging-Header.h"
     CLANG_ENABLE_OBJC_ARC: YES
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
 targets:
-  ImageRater:
+  Focal:
     type: application
     platform: macOS
     sources:
@@ -23,7 +25,7 @@ targets:
       - ImageRater/CoreData/ImageRater.xcdatamodeld
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.imageRater.ImageRater
+        PRODUCT_BUNDLE_IDENTIFIER: com.focal.app
         INFOPLIST_FILE: ImageRater/Info.plist
         CODE_SIGN_STYLE: Automatic
         ENABLE_HARDENED_RUNTIME: YES
@@ -31,7 +33,7 @@ targets:
         HEADER_SEARCH_PATHS: "/opt/homebrew/include"
         LIBRARY_SEARCH_PATHS: "/opt/homebrew/lib"
     dependencies: []
-  ImageRaterTests:
+  FocalTests:
     type: bundle.unit-test
     platform: macOS
     sources:
@@ -40,23 +42,23 @@ targets:
       - ImageRaterTests/Fixtures
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.imageRater.ImageRaterTests
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/ImageRater.app/Contents/MacOS/ImageRater"
+        PRODUCT_BUNDLE_IDENTIFIER: com.focal.tests
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/Focal.app/Contents/MacOS/Focal"
         GENERATE_INFOPLIST_FILE: YES
     dependencies:
-      - target: ImageRater
+      - target: Focal
 schemes:
-  ImageRater:
+  Focal:
     build:
       targets:
-        ImageRater: all
-        ImageRaterTests: [test]
+        Focal: all
+        FocalTests: [test]
     run:
       config: Debug
     test:
       config: Debug
       targets:
-        - ImageRaterTests
+        - FocalTests
     profile:
       config: Release
     analyze:
