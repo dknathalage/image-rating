@@ -40,3 +40,10 @@ testing/
 # ML model binaries (large, distribute via releases not git)
 *.mlmodelc/
 ImageRater/MLModels/
+
+# Benchmark Python environment
+testing/bench/.venv/
+testing/bench/data/
+testing/bench/results/
+testing/bench/.cache/
+testing/bench/__pycache__/
