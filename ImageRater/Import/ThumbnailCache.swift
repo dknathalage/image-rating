@@ -3,6 +3,12 @@ import AppKit
 import CryptoKit
 import Foundation
 
+/// Thread-safe box used to hand a BlockOperation reference across async/actor boundaries
+/// so withTaskCancellationHandler can cancel it if the Swift task is cancelled.
+private final class OperationHolder: @unchecked Sendable {
+    var operation: BlockOperation?
+}
+
 actor ThumbnailCache {
     static let shared = ThumbnailCache()
 
@@ -16,72 +22,63 @@ actor ThumbnailCache {
         diskCacheURL = caches.appendingPathComponent("ImageRater/thumbnails")
         try? FileManager.default.createDirectory(at: diskCacheURL, withIntermediateDirectories: true)
         memCache.countLimit = 300
-        memCache.totalCostLimit = 150 * 1024 * 1024 // 150 MB — NSCache evicts under pressure
+        memCache.totalCostLimit = 150 * 1024 * 1024 // 150 MB
     }
 
     /// Returns thumbnail for the given URL at requested size.
+    /// Three-tier load: memory → disk (fast queue) → full decode (throttled queue).
     func thumbnail(for url: URL, size: CGSize = CGSize(width: 200, height: 200)) async -> NSImage? {
         let key = Self.cacheKey(for: url, size: size)
         let diskURL = diskCacheURL.appendingPathComponent(key + ".jpg")
         if !knownSizes.contains(size) { knownSizes.append(size) }
 
-        // Memory hit — fast, no I/O
+        // Tier 1: memory — no I/O
         if let cached = memCache.object(forKey: key as NSString) { return cached }
 
-        // Offload all blocking I/O (disk read, RAW decode, disk write) off actor executor.
-        // Throttled via decodeQueue to prevent concurrent dyld lock contention during LibRaw / ImageIO init.
-        let nsImage = await withCheckedContinuation { (continuation: CheckedContinuation<NSImage?, Never>) in
-            Self.decodeQueue.addOperation {
-                // Disk hit
-                if let data = try? Data(contentsOf: diskURL), let img = NSImage(data: data) {
-                    continuation.resume(returning: img)
-                    return
-                }
-                // Generate: decode + write disk cache
-                guard let cgImage = ThumbnailCache.decodeThumbnail(url: url, size: size) else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-                let actualSize = CGSize(width: cgImage.width, height: cgImage.height)
-                let nsImage = NSImage(cgImage: cgImage, size: actualSize)
-                let rep = NSBitmapImageRep(cgImage: cgImage)
-                if let jpegData = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.8]) {
-                    try? jpegData.write(to: diskURL)
-                }
-                continuation.resume(returning: nsImage)
+        // Tier 2: disk hit — lightweight read, uses high-concurrency diskReadQueue.
+        // This is separate from decodeQueue so cached thumbnails don't compete with
+        // heavy RAW decodes for queue slots.
+        if let img = await Self.readFromDisk(diskURL) {
+            if size.width <= 400 {
+                memCache.setObject(img, forKey: key as NSString, cost: Int(size.width * size.height) * 4)
             }
+            return img
         }
 
-        guard let nsImage else { return nil }
-        // Don't mem-cache large detail-view thumbnails — they bloat memory fast
+        // Tier 3: full decode — throttled via decodeQueue to cap peak memory from
+        // concurrent LibRaw / ImageIO allocations.
+        let holder = OperationHolder()
+        let decoded: NSImage? = await withTaskCancellationHandler {
+            await withCheckedContinuation { (c: CheckedContinuation<NSImage?, Never>) in
+                let op = BlockOperation()
+                holder.operation = op
+                op.addExecutionBlock {
+                    var resumed = false
+                    defer { if !resumed { c.resume(returning: nil) } }
+                    if op.isCancelled { c.resume(returning: nil); resumed = true; return }
+                    guard let cgImage = ThumbnailCache.decodeThumbnail(url: url, size: size) else {
+                        c.resume(returning: nil); resumed = true; return
+                    }
+                    let actualSize = CGSize(width: cgImage.width, height: cgImage.height)
+                    let img = NSImage(cgImage: cgImage, size: actualSize)
+                    let rep = NSBitmapImageRep(cgImage: cgImage)
+                    if let data = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.8]) {
+                        try? data.write(to: diskURL)
+                    }
+                    c.resume(returning: img)
+                    resumed = true
+                }
+                Self.decodeQueue.addOperation(op)
+            }
+        } onCancel: {
+            holder.operation?.cancel()
+        }
+
+        guard let decoded else { return nil }
         if size.width <= 400 {
-            let cost = Int(size.width * size.height) * 4
-            memCache.setObject(nsImage, forKey: key as NSString, cost: cost)
+            memCache.setObject(decoded, forKey: key as NSString, cost: Int(size.width * size.height) * 4)
         }
-        return nsImage
-    }
-
-    /// Prefetch up to `limit` uncached thumbnails in the background.
-    /// Intentionally capped — prefetching everything in a large session causes huge memory spikes.
-    func prefetch(urls: [URL], size: CGSize, limit: Int = 60) {
-        var queued = 0
-        for url in urls {
-            guard queued < limit else { break }
-            let key = Self.cacheKey(for: url, size: size)
-            if memCache.object(forKey: key as NSString) != nil { continue }
-            let diskURL = diskCacheURL.appendingPathComponent(key + ".jpg")
-            if FileManager.default.fileExists(atPath: diskURL.path) { continue }
-            let op = BlockOperation {
-                guard let cgImage = ThumbnailCache.decodeThumbnail(url: url, size: size) else { return }
-                let rep = NSBitmapImageRep(cgImage: cgImage)
-                if let jpegData = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.8]) {
-                    try? jpegData.write(to: diskURL)
-                }
-            }
-            op.queuePriority = .low
-            Self.decodeQueue.addOperation(op)
-            queued += 1
-        }
+        return decoded
     }
 
     /// Remove all cached variants of a URL (call after user changes rating to force refresh).
@@ -94,8 +91,43 @@ actor ThumbnailCache {
         }
     }
 
-    // Throttle concurrent RAW/ImageIO decodes — LibRaw holds ~50–300 MB per decode.
-    // 4 concurrent = up to ~1.2 GB peak during prefetch; safe headroom on 16 GB machines.
+    // MARK: - Private
+
+    /// Read a JPEG from the disk cache. Runs on diskReadQueue (cancellable).
+    private static func readFromDisk(_ url: URL) async -> NSImage? {
+        let holder = OperationHolder()
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { (c: CheckedContinuation<NSImage?, Never>) in
+                let op = BlockOperation()
+                holder.operation = op
+                op.addExecutionBlock {
+                    var resumed = false
+                    defer { if !resumed { c.resume(returning: nil) } }
+                    if op.isCancelled { c.resume(returning: nil); resumed = true; return }
+                    guard let data = try? Data(contentsOf: url),
+                          let img = NSImage(data: data) else {
+                        c.resume(returning: nil); resumed = true; return
+                    }
+                    c.resume(returning: img)
+                    resumed = true
+                }
+                Self.diskReadQueue.addOperation(op)
+            }
+        } onCancel: {
+            holder.operation?.cancel()
+        }
+    }
+
+    // Disk reads: many concurrent OK — just file I/O, no large memory allocations.
+    private static let diskReadQueue: OperationQueue = {
+        let q = OperationQueue()
+        q.maxConcurrentOperationCount = 8
+        q.qualityOfService = .userInitiated
+        return q
+    }()
+
+    // RAW/ImageIO decodes: throttled — LibRaw holds 50–300 MB per active decode.
+    // 3 concurrent = up to ~900 MB peak; acceptable headroom on 16 GB machines.
     private static let decodeQueue: OperationQueue = {
         let q = OperationQueue()
         q.maxConcurrentOperationCount = 4
@@ -103,24 +135,25 @@ actor ThumbnailCache {
         return q
     }()
 
-    // MARK: Private — static so they can be called from detached Tasks without actor hop
+    // MARK: - Static helpers (no actor hop needed)
 
     private static func decodeThumbnail(url: URL, size: CGSize) -> CGImage? {
         let ext = url.pathExtension.lowercased()
         if LibRawWrapper.supportedExtensions.contains(ext),
            let img = LibRawWrapper.preview(url: url) {
-            // Fast path: LibRaw embedded JPEG extraction succeeded.
             return resize(img, to: size)
         }
-        // ImageIO fallback: handles standard formats AND embedded previews in RAW files
-        // that LibRaw can't decode (e.g. Fujifilm X-H2 RA21 compressed variant).
+        // IMPORTANT: use CGImageSourceCreateThumbnailAtIndex, NOT CGImageSourceCreateImageAtIndex.
+        // The kCGImageSourceThumbnail* options are silently ignored by CreateImageAtIndex —
+        // it returns a full-resolution image, causing IOSurface OOM when displayed in the grid.
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let cgImage = CGImageSourceCreateImageAtIndex(source, 0, [
+              let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, [
                   kCGImageSourceThumbnailMaxPixelSize: max(size.width, size.height),
                   kCGImageSourceCreateThumbnailFromImageAlways: true,
                   kCGImageSourceCreateThumbnailWithTransform: true
               ] as CFDictionary) else { return nil }
-        return cgImage
+        // Resize as a safety net — ImageIO may return slightly different dimensions.
+        return resize(cgImage, to: size) ?? cgImage
     }
 
     private static func resize(_ image: CGImage, to maxSize: CGSize) -> CGImage? {

@@ -24,7 +24,6 @@ struct GridView: View {
     @Binding var anchorID: NSManagedObjectID?
     let cellSize: CGFloat
     let onDoubleClick: (ImageRecord) -> Void
-    let onRate: (ImageRecord, Int) -> Void
     let onRemoveRatings: () -> Void
     let onRunAI: () -> Void
 
@@ -33,10 +32,14 @@ struct GridView: View {
     @State private var cellFrames: [NSManagedObjectID: CGRect] = [:]
     @State private var dragRect: CGRect?
     @State private var scrollProxy: ScrollViewProxy?
-    // Viewport height tracked for edge-scroll detection
+    // Viewport dimensions tracked for edge-scroll + load window
     @State private var viewportHeight: CGFloat = 0
+    @State private var viewportWidth: CGFloat = 0
     @State private var scrollOffset: CGFloat = 0
+    /// Debounced scroll offset — only updates after scroll settles. Used for load/evict decisions.
+    @State private var stableScrollOffset: CGFloat = 0
     @State private var autoScrollTimer: Timer?
+    @State private var prefetchDebounce: Timer?
 
     var body: some View {
         if images.isEmpty && !sessionHasImages {
@@ -52,17 +55,16 @@ struct GridView: View {
                 ScrollView {
                     ZStack(alignment: .topLeading) {
                         LazyVGrid(columns: columns, spacing: 8) {
-                            ForEach(images, id: \.objectID) { record in
+                            ForEach(Array(images.enumerated()), id: \.element.objectID) { idx, record in
                                 ThumbnailCell(
                                     record: record,
                                     isSelected: selectedIDs.contains(record.objectID),
-                                    cellSize: cellSize
+                                    cellSize: cellSize,
+                                    shouldLoad: isNearViewport(index: idx)
                                 ) { mods in
                                     handleTap(record: record, modifiers: mods)
                                 } onDoubleClick: {
                                     onDoubleClick(record)
-                                } onRate: { stars in
-                                    onRate(record, stars)
                                 }
                                 .id(record.objectID)
                                 .background(
@@ -112,12 +114,26 @@ struct GridView: View {
                 .coordinateSpace(name: "scroll")
                 .background(
                     GeometryReader { geo in
-                        Color.clear.onAppear { viewportHeight = geo.size.height }
-                            .onChange(of: geo.size.height) { _, h in viewportHeight = h }
+                        Color.clear
+                            .onAppear {
+                                // GeometryReader onAppear fires during layout — defer all
+                                // state mutations to avoid "Modifying state during view update".
+                                Task { @MainActor in
+                                    viewportHeight = geo.size.height
+                                    viewportWidth = geo.size.width
+                                    stableScrollOffset = scrollOffset
+                                }
+                            }
+                            .onChange(of: geo.size) { _, s in viewportHeight = s.height; viewportWidth = s.width }
                     }
                 )
                 .onPreferenceChange(ScrollOffsetKey.self) { offset in
-                    scrollOffset = offset
+                    // onPreferenceChange fires during the view update phase.
+                    // Defer state mutations to avoid "Modifying state during view update".
+                    Task { @MainActor in
+                        scrollOffset = offset
+                        schedulePrefetch()
+                    }
                 }
                 .contextMenu {
                     if !selectedIDs.isEmpty {
@@ -150,6 +166,35 @@ struct GridView: View {
                 .frame(width: 0, height: 0)
                 .opacity(0)
         }
+    }
+
+    // MARK: - Scroll settle debounce
+
+    private func schedulePrefetch() {
+        prefetchDebounce?.invalidate()
+        prefetchDebounce = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: false) { _ in
+            Task { @MainActor in
+                // Scroll has settled — commit stable offset so load window re-evaluates
+                stableScrollOffset = scrollOffset
+            }
+        }
+    }
+
+    // MARK: - Load window
+
+    /// Returns true if cell at `index` is within 2 rows of the stable (debounced) viewport.
+    /// Uses stableScrollOffset so load decisions freeze during scrolling — no task churn.
+    private func isNearViewport(index: Int) -> Bool {
+        guard viewportWidth > 0, viewportHeight > 0, cellSize > 0 else { return false }
+        let colCount = max(1, Int((viewportWidth - 16) / (cellSize + 8)))
+        let cellHeight = cellSize * 0.6875 + 8
+        let rowIndex = index / colCount
+        let cellTop = CGFloat(rowIndex) * cellHeight + 16   // 16 = grid padding
+        let cellBottom = cellTop + cellHeight
+        let bufferRows: CGFloat = 2
+        let loadTop = stableScrollOffset - bufferRows * cellHeight
+        let loadBottom = stableScrollOffset + viewportHeight + bufferRows * cellHeight
+        return cellBottom > loadTop && cellTop < loadBottom
     }
 
     // MARK: - Tap logic
