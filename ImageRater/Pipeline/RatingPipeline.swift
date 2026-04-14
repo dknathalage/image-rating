@@ -173,6 +173,19 @@ enum RatingPipeline {
         if let url = Bundle.main.url(forResource: name, withExtension: "mlmodelc") {
             return try MLModel(contentsOf: url, configuration: configuration)
         }
+        // CLI tool fallback: env var override for ad-hoc model dir
+        if let envDir = ProcessInfo.processInfo.environment["FOCAL_MLMODELS_DIR"] {
+            let url = URL(fileURLWithPath: envDir).appendingPathComponent("\(name).mlmodelc")
+            if FileManager.default.fileExists(atPath: url.path) {
+                return try MLModel(contentsOf: url, configuration: configuration)
+            }
+        }
+        // CLI tool fallback: sibling to binary (for `tool` target without resource bundle)
+        let exeDir = Bundle.main.bundleURL.deletingLastPathComponent()
+        let siblingURL = exeDir.appendingPathComponent("\(name).mlmodelc")
+        if FileManager.default.fileExists(atPath: siblingURL.path) {
+            return try MLModel(contentsOf: siblingURL, configuration: configuration)
+        }
         // Fallback: compile at runtime on first launch after an update
         guard let pkgURL = Bundle.main.url(forResource: name, withExtension: "mlpackage") else {
             throw RatingError.modelNotFound(name)

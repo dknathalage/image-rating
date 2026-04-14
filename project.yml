@@ -47,6 +47,41 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: Focal
+  FocalScorer:
+    type: tool
+    platform: macOS
+    sources:
+      - path: FocalScorer
+      - path: ImageRater/Pipeline/RatingPipeline.swift
+      - path: ImageRater/Pipeline/CLIPTextEmbeddings.swift
+      - path: ImageRater/App/FocalSettings.swift
+      - path: ImageRater/LibRaw/LibRawWrapper.swift
+      - path: ImageRater/LibRaw/LibRawBridge.h
+      - path: ImageRater/LibRaw/LibRawBridge.mm
+      - path: ImageRater/Models/RatingResult.swift
+    postBuildScripts:
+      - name: Copy MLModels next to binary
+        script: |
+          set -e
+          SRC="$SRCROOT/ImageRater/MLModels"
+          DEST="$TARGET_BUILD_DIR"
+          for m in topiq-nr topiq-swin clip-vision; do
+            if [ -d "$SRC/$m.mlmodelc" ]; then
+              rm -rf "$DEST/$m.mlmodelc"
+              cp -R "$SRC/$m.mlmodelc" "$DEST/$m.mlmodelc"
+            fi
+          done
+        basedOnDependencyAnalysis: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.focal.scorer
+        SWIFT_OBJC_BRIDGING_HEADER: "ImageRater/ImageRater-Bridging-Header.h"
+        OTHER_LDFLAGS: "-lraw"
+        HEADER_SEARCH_PATHS: "/opt/homebrew/include"
+        LIBRARY_SEARCH_PATHS: "/opt/homebrew/lib"
+        ARCHS: "arm64"
+        ONLY_ACTIVE_ARCH: YES
+        VALID_ARCHS: "arm64"
 schemes:
   Focal:
     build:
@@ -64,4 +99,10 @@ schemes:
     analyze:
       config: Debug
     archive:
+      config: Release
+  FocalScorer:
+    build:
+      targets:
+        FocalScorer: all
+    run:
       config: Release
