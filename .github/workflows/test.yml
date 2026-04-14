@@ -1,0 +1,28 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Build & Test
+    runs-on: macos-15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: brew install libraw xcodegen xcpretty
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build & test
+        run: |
+          xcodebuild test \
+            -scheme Focal \
+            -destination 'platform=macOS,arch=arm64' \
+            | xcpretty
