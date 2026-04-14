@@ -44,6 +44,7 @@
 		B320CB30EFD04AEC9C73667B /* ZoomableImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E72FFC138374B82B144061C /* ZoomableImageView.swift */; };
 		AA11223344556677889900AB /* DiversityScorer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB11223344556677889900CD /* DiversityScorer.swift */; };
 		CC11223344556677889900EF /* DiversityScorerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11223344556677889900F0 /* DiversityScorerTests.swift */; };
+		EE11223344556677889900A1 /* CLIPTextEmbeddings.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF11223344556677889900B2 /* CLIPTextEmbeddings.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -100,6 +101,7 @@
 		6E72FFC138374B82B144061C /* ZoomableImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomableImageView.swift; sourceTree = "<group>"; };
 		BB11223344556677889900CD /* DiversityScorer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiversityScorer.swift; sourceTree = "<group>"; };
 		DD11223344556677889900F0 /* DiversityScorerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiversityScorerTests.swift; sourceTree = "<group>"; };
+		FF11223344556677889900B2 /* CLIPTextEmbeddings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CLIPTextEmbeddings.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -157,6 +159,7 @@
 			isa = PBXGroup;
 			children = (
 				3BA85CE95545757BDA458D16 /* CullPipeline.swift */,
+				FF11223344556677889900B2 /* CLIPTextEmbeddings.swift */,
 				BB11223344556677889900CD /* DiversityScorer.swift */,
 				04B0B3EF2D596CB97DF5278D /* ProcessingQueue.swift */,
 				74FAE79C691882738757D09E /* RatingPipeline.swift */,
@@ -371,6 +374,7 @@
 			files = (
 				35EE8069B023B37EDE7D0BD1 /* ContentView.swift in Sources */,
 				309F86F515ECCB91E16E07A6 /* CullPipeline.swift in Sources */,
+				EE11223344556677889900A1 /* CLIPTextEmbeddings.swift in Sources */,
 				AA11223344556677889900AB /* DiversityScorer.swift in Sources */,
 				55996786456F392BB67EB921 /* CullResult.swift in Sources */,
 				3A35D7F6D67AAE6548C47B54 /* DetailView.swift in Sources */,

@@ -3,37 +3,6 @@ import XCTest
 
 final class RatingPipelineTests: XCTestCase {
 
-    // MARK: - absoluteStars thresholds
-
-    func testAbsoluteStars_below3_8_is1Star() {
-        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 3.7), 1)
-        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 1.0), 1)
-    }
-
-    func testAbsoluteStars_3_8to4_2_is2Stars() {
-        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 3.8), 2)
-        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 4.1), 2)
-    }
-
-    func testAbsoluteStars_4_2to4_6_is3Stars() {
-        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 4.2), 3)
-        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 4.5), 3)
-    }
-
-    func testAbsoluteStars_4_6to5_0_is4Stars() {
-        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 4.6), 4)
-        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 4.9), 4)
-    }
-
-    func testAbsoluteStars_5_0plus_is5Stars() {
-        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 5.0), 5)
-        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 10.0), 5)
-    }
-
-    func testAbsoluteStars_clampsBelowRange() {
-        XCTAssertEqual(RatingPipeline.absoluteStars(combined: 0.0), 1)
-    }
-
     // MARK: - Pixel buffer creation
 
     func testPixelBufferCreationSucceeds() throws {
@@ -45,5 +14,44 @@ final class RatingPipelineTests: XCTestCase {
         let pb = try RatingPipeline.cgImageToPixelBuffer(cgImage, width: 224, height: 224)
         XCTAssertEqual(CVPixelBufferGetWidth(pb), 224)
         XCTAssertEqual(CVPixelBufferGetHeight(pb), 224)
+    }
+
+    func testPixelBufferCreation384x384() throws {
+        let img = makeSolidColorCGImage(size: 512)
+        let buffer = try RatingPipeline.cgImageToPixelBuffer(img, width: 384, height: 384)
+        XCTAssertEqual(CVPixelBufferGetWidth(buffer), 384)
+        XCTAssertEqual(CVPixelBufferGetHeight(buffer), 384)
+    }
+
+    // MARK: - Combined quality weighting
+
+    func testCombinedQualityWeighting() {
+        let score = RatingPipeline.combinedQuality(
+            technical: 0.8, aesthetic: 0.6, semantic: 0.5,
+            weights: (technical: 0.4, aesthetic: 0.4, semantic: 0.2))
+        XCTAssertEqual(score, 0.4*0.8 + 0.4*0.6 + 0.2*0.5, accuracy: 0.001)
+    }
+
+    // MARK: - CLIP-IQA+ score
+
+    func testClipIQAPlusScoreIsBetweenZeroAndOne() {
+        // Any L2-normalised embedding must produce a score in [0,1]
+        var emb = [Float](repeating: 0, count: 512)
+        emb[0] = 1.0   // unit vector
+        let score = RatingPipeline.clipIQAScore(embedding: emb)
+        XCTAssertGreaterThanOrEqual(score, 0.0)
+        XCTAssertLessThanOrEqual(score, 1.0)
+    }
+
+    // MARK: - Helpers
+
+    private func makeSolidColorCGImage(size: Int) -> CGImage {
+        let bmi = CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.noneSkipFirst.rawValue
+        let ctx = CGContext(data: nil, width: size, height: size, bitsPerComponent: 8,
+                            bytesPerRow: 4 * size, space: CGColorSpaceCreateDeviceRGB(),
+                            bitmapInfo: bmi)!
+        ctx.setFillColor(CGColor(gray: 0.5, alpha: 1))
+        ctx.fill(CGRect(x: 0, y: 0, width: size, height: size))
+        return ctx.makeImage()!
     }
 }

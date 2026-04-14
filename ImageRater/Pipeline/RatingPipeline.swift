@@ -1,5 +1,7 @@
+// ImageRater/Pipeline/RatingPipeline.swift
 import CoreML
 import CoreImage
+import CoreVideo
 import Foundation
 import OSLog
 
@@ -7,93 +9,95 @@ private let log = Logger(subsystem: "com.imagerating", category: "RatingPipeline
 
 enum RatingError: Error {
     case pixelBufferCreationFailed
+    case modelNotFound(String)
 }
 
 enum RatingPipeline {
 
-    // MARK: - Star mapping
+    // MARK: - Model loading (call once before processing loop)
 
-    /// Map a combined NIMA score [1–10] to 1–5 stars.
-    ///
-    /// Thresholds calibrated against real-session data (median combined ≈ 4.4–4.5);
-    /// AVA competition-photo thresholds (4.0/4.8/5.6/6.4) were ~1.2 pts too high
-    /// for typical photography sessions, causing nearly all images to score 2★.
-    ///
-    ///   < 3.8  →  1★  (poor — technically or aesthetically deficient)
-    ///   < 4.2  →  2★  (below average)
-    ///   < 4.6  →  3★  (average)
-    ///   < 5.0  →  4★  (good)
-    ///   ≥ 5.0  →  5★  (exceptional)
-    static func absoluteStars(combined score: Float) -> Int {
-        switch score {
-        case ..<3.8: return 1
-        case ..<4.2: return 2
-        case ..<4.6: return 3
-        case ..<5.0: return 4
-        default:     return 5
-        }
+    struct BundledModels {
+        let technical: MLModel   // TOPIQ-NR
+        let aesthetic: MLModel   // TOPIQ-Swin
+        let clip: MLModel        // CLIP vision encoder
+    }
+
+    /// Load all three bundled models. Call once; pass result into rate() for every image.
+    /// Throws if any .mlpackage/.mlmodelc is missing from the app bundle.
+    static func loadBundledModels() throws -> BundledModels {
+        let config = MLModelConfiguration()
+        config.computeUnits = isAppleSilicon ? .all : .cpuOnly
+        return BundledModels(
+            technical: try loadBundledModel(named: "topiq-nr",    configuration: config),
+            aesthetic: try loadBundledModel(named: "topiq-swin",  configuration: config),
+            clip:      try loadBundledModel(named: "clip-vision", configuration: config)
+        )
     }
 
     // MARK: - Inference
 
-    /// Run NIMA aesthetic + technical inference on a CGImage.
-    /// Returns .unrated on any failure — never throws.
-    static func rate(image: CGImage,
-                     nimaAestheticModel: MLModel,
-                     nimaTechnicalModel: MLModel) async -> RatingResult {
+    /// Rate a single image with all three models concurrently. Never throws — returns .unrated on failure.
+    static func rate(
+        image: CGImage,
+        models: BundledModels,
+        weights: (technical: Float, aesthetic: Float, semantic: Float) = (0.4, 0.4, 0.2)
+    ) async -> RatingResult {
         do {
-            log.debug("Creating pixel buffer \(image.width)×\(image.height) → 224×224")
-            let pixelBuffer = try cgImageToPixelBuffer(image, width: 224, height: 224)
+            async let techScoreTask  = inferScore(image: image, model: models.technical, inputSize: 224)
+            async let aesScoreTask   = inferScore(image: image, model: models.aesthetic, inputSize: 384)
+            async let clipEmbTask    = inferEmbedding(image: image, model: models.clip,  inputSize: 224)
 
-            log.debug("Running NIMA aesthetic inference")
-            let aestheticInput = try MLDictionaryFeatureProvider(dictionary: ["image": pixelBuffer])
-            let aestheticOutput = try await nimaAestheticModel.prediction(from: aestheticInput)
-            let aestheticScore = extractScore(from: aestheticOutput)
-            log.info("NIMA aesthetic: \(aestheticScore, format: .fixed(precision: 4))")
+            let (tech, aes, emb) = try await (techScoreTask, aesScoreTask, clipEmbTask)
+            let clip     = clipIQAScore(embedding: emb)
+            let combined = combinedQuality(technical: tech, aesthetic: aes, semantic: clip, weights: weights)
 
-            log.debug("Running NIMA technical inference")
-            let technicalInput = try MLDictionaryFeatureProvider(dictionary: ["image": pixelBuffer])
-            let technicalOutput = try await nimaTechnicalModel.prediction(from: technicalInput)
-            let technicalScore = extractScore(from: technicalOutput)
-            log.info("NIMA technical: \(technicalScore, format: .fixed(precision: 4))")
+            log.info("TOPIQ-NR \(tech, format: .fixed(precision: 3))  TOPIQ-Swin \(aes, format: .fixed(precision: 3))  CLIP-IQA+ \(clip, format: .fixed(precision: 3))  combined \(combined, format: .fixed(precision: 3))")
 
-            let combined = (aestheticScore + technicalScore) / 2.0
-            let stars = absoluteStars(combined: combined)
-            log.info("Combined \(combined, format: .fixed(precision: 3)) → \(stars)★ (aes \(aestheticScore, format: .fixed(precision: 3)), tech \(technicalScore, format: .fixed(precision: 3)))")
-
-            return RatingResult(stars: stars, aestheticScore: aestheticScore, technicalScore: technicalScore)
+            return .rated(RatedScores(
+                topiqTechnicalScore:  tech,
+                topiqAestheticScore:  aes,
+                clipIQAScore:         clip,
+                combinedQualityScore: combined,
+                clipEmbedding:        emb
+            ))
         } catch {
             log.error("Rating failed: \(error)")
             return .unrated
         }
     }
 
-    // MARK: - Internal
+    // MARK: - Helpers (internal, exposed for testing)
 
-    /// Extract scalar score from a CoreML output provider.
-    /// Tries "score" first, then falls back to whichever key the model exposes
-    /// (TF SavedModel conversion often names the output "Identity").
-    private static func extractScore(from output: MLFeatureProvider) -> Float {
-        let key = output.featureNames.contains("score")
-            ? "score"
-            : (output.featureNames.first ?? "score")
-        return output.featureValue(for: key).flatMap { fv -> Float? in
-            if let arr = fv.multiArrayValue { return arr[0].floatValue }
-            return Float(fv.doubleValue)
-        } ?? 5.0
+    static func combinedQuality(
+        technical: Float, aesthetic: Float, semantic: Float,
+        weights: (technical: Float, aesthetic: Float, semantic: Float)
+    ) -> Float {
+        weights.technical * technical + weights.aesthetic * aesthetic + weights.semantic * semantic
     }
+
+    /// CLIP-IQA+: softmax([dot(img, good), dot(img, bad)])[0] = P("Good photo")
+    static func clipIQAScore(embedding: [Float]) -> Float {
+        let good = CLIPTextEmbeddings.goodPhoto
+        let bad  = CLIPTextEmbeddings.badPhoto
+        let dotGood: Float = zip(embedding, good).reduce(0) { $0 + $1.0 * $1.1 }
+        let dotBad:  Float = zip(embedding, bad).reduce(0)  { $0 + $1.0 * $1.1 }
+        let maxVal  = max(dotGood, dotBad)
+        let eG = expf(dotGood - maxVal)
+        let eB = expf(dotBad  - maxVal)
+        return eG / (eG + eB)
+    }
+
+    // MARK: - Pixel buffer
 
     static func cgImageToPixelBuffer(_ image: CGImage, width: Int, height: Int) throws -> CVPixelBuffer {
         var buffer: CVPixelBuffer?
         let attrs: CFDictionary = [
-            kCVPixelBufferCGImageCompatibilityKey: true,
+            kCVPixelBufferCGImageCompatibilityKey:       true,
             kCVPixelBufferCGBitmapContextCompatibilityKey: true
         ] as CFDictionary
-        let status = CVPixelBufferCreate(kCFAllocatorDefault, width, height,
-                                         kCVPixelFormatType_32BGRA, attrs, &buffer)
-        guard status == kCVReturnSuccess, let pb = buffer else {
-            throw RatingError.pixelBufferCreationFailed
-        }
+        guard CVPixelBufferCreate(kCFAllocatorDefault, width, height,
+                                  kCVPixelFormatType_32BGRA, attrs, &buffer) == kCVReturnSuccess,
+              let pb = buffer else { throw RatingError.pixelBufferCreationFailed }
         CVPixelBufferLockBaseAddress(pb, [])
         defer { CVPixelBufferUnlockBaseAddress(pb, []) }
         guard let ctx = CGContext(
@@ -106,5 +110,59 @@ enum RatingPipeline {
         ) else { throw RatingError.pixelBufferCreationFailed }
         ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
         return pb
+    }
+
+    // MARK: - Private
+
+    private static func inferScore(image: CGImage, model: MLModel, inputSize: Int) async throws -> Float {
+        let buf   = try cgImageToPixelBuffer(image, width: inputSize, height: inputSize)
+        let input = try MLDictionaryFeatureProvider(dictionary: ["image": buf])
+        let out   = try await model.prediction(from: input)
+        return extractScalar(from: out)
+    }
+
+    private static func inferEmbedding(image: CGImage, model: MLModel, inputSize: Int) async throws -> [Float] {
+        let buf   = try cgImageToPixelBuffer(image, width: inputSize, height: inputSize)
+        let input = try MLDictionaryFeatureProvider(dictionary: ["image": buf])
+        let out   = try await model.prediction(from: input)
+        return extractFloatArray(from: out)
+    }
+
+    private static func extractScalar(from output: MLFeatureProvider) -> Float {
+        for name in output.featureNames {
+            if let arr = output.featureValue(for: name)?.multiArrayValue { return arr[0].floatValue }
+            if let d   = output.featureValue(for: name)?.doubleValue     { return Float(d) }
+        }
+        return 0.5
+    }
+
+    private static func extractFloatArray(from output: MLFeatureProvider) -> [Float] {
+        for name in output.featureNames {
+            if let arr = output.featureValue(for: name)?.multiArrayValue {
+                return (0..<arr.count).map { arr[$0].floatValue }
+            }
+        }
+        return Array(repeating: 0, count: 512)
+    }
+
+    private static func loadBundledModel(named name: String, configuration: MLModelConfiguration) throws -> MLModel {
+        // Xcode compiles .mlpackage → .mlmodelc at build time
+        if let url = Bundle.main.url(forResource: name, withExtension: "mlmodelc") {
+            return try MLModel(contentsOf: url, configuration: configuration)
+        }
+        // Fallback: compile at runtime on first launch after an update
+        guard let pkgURL = Bundle.main.url(forResource: name, withExtension: "mlpackage") else {
+            throw RatingError.modelNotFound(name)
+        }
+        let compiled = try MLModel.compileModel(at: pkgURL)
+        return try MLModel(contentsOf: compiled, configuration: configuration)
+    }
+
+    private static var isAppleSilicon: Bool {
+        var info = utsname()
+        uname(&info)
+        return withUnsafePointer(to: &info.machine) {
+            $0.withMemoryRebound(to: CChar.self, capacity: 1) { String(cString: $0) }
+        }.hasPrefix("arm")
     }
 }
