@@ -292,7 +292,6 @@ struct ContentView: View {
             }
         }
         keyboard.onReject = { setRating(1) }
-        FocalSettings.migrateIfNeeded()
         keyboard.start()
     }
 

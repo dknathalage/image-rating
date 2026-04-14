@@ -166,9 +166,6 @@ actor ProcessingQueue {
 
         guard !entries.isEmpty else { return }
 
-        let storedStrictness = UserDefaults.standard.double(forKey: FocalSettings.cullStrictness)
-        let strictness = storedStrictness == 0 ? FocalSettings.defaultCullStrictness : storedStrictness
-
         // Percentile rank only valid (non-override, non-decode-error) images
         let validIndices = entries.indices.filter { !entries[$0].decodeError && entries[$0].overrideStars == nil }
         let valid = validIndices.map { entries[$0] }
@@ -185,6 +182,9 @@ actor ProcessingQueue {
         let (cLo, cHi) = minMax(valid.map(\.clip))
 
         let ud = UserDefaults.standard
+        let strictness = ud.object(forKey: FocalSettings.cullStrictness) != nil
+            ? ud.double(forKey: FocalSettings.cullStrictness)
+            : FocalSettings.defaultCullStrictness
         let wTech = ud.object(forKey: FocalSettings.weightTechnical) != nil
             ? Float(ud.double(forKey: FocalSettings.weightTechnical))
             : Float(FocalSettings.defaultWeightTechnical)

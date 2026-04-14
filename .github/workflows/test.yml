@@ -22,6 +22,7 @@ jobs:
 
       - name: Build & test
         run: |
+          set -o pipefail
           xcodebuild test \
             -scheme Focal \
             -destination 'platform=macOS,arch=arm64' \

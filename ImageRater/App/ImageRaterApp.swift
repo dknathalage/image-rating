@@ -5,6 +5,10 @@ import SwiftUI
 struct FocalApp: App {
     let persistence = PersistenceController.shared
 
+    init() {
+        FocalSettings.migrateIfNeeded()
+    }
+
     var body: some Scene {
         WindowGroup {
             ContentView()
