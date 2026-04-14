@@ -32,6 +32,7 @@
 		721F5F52FC6BE66FF50FB58E /* MetadataWriterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0BCEC4AA9DD6164F4B9683 /* MetadataWriterTests.swift */; };
 		75B45A62C0D7F902ECE2CD15 /* CullResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBF2EF9D9BDCF8F354C405F0 /* CullResult.swift */; };
 		7D9A7CEA1CF93C6CFA205F72 /* ModelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C32B4A5EA3A47162823B356 /* ModelStore.swift */; };
+		8CA3DF7E930703084BB8568E /* FocalSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D76442A9913CC9DD613080D /* FocalSettings.swift */; };
 		970AD203434B479C5DCE02BE /* ImageImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB77730106B692669232FF24 /* ImageImporter.swift */; };
 		A842018B52E8D4924E05D34F /* ImageRaterApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE8D76CC96A770503706BA1F /* ImageRaterApp.swift */; };
 		AA4F452486AFB3228199079E /* DetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 592B32171BC756561B14E8CF /* DetailView.swift */; };
@@ -60,6 +61,7 @@
 
 /* Begin PBXFileReference section */
 		03BDCA44CF91A7599CB55BA8 /* ThumbnailCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailCache.swift; sourceTree = "<group>"; };
+		0D76442A9913CC9DD613080D /* FocalSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocalSettings.swift; sourceTree = "<group>"; };
 		114C76DDF7485E396DD68917 /* ManifestFetcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManifestFetcher.swift; sourceTree = "<group>"; };
 		1458B70EA7DD6F081F3C4640 /* ImageRater 3.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "ImageRater 3.xcdatamodel"; sourceTree = "<group>"; };
 		146C4A44F572FAC2FDE69F5A /* RatingPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RatingPipeline.swift; sourceTree = "<group>"; };
@@ -148,6 +150,7 @@
 			isa = PBXGroup;
 			children = (
 				198583860C498ACDEEF9AA37 /* ContentView.swift */,
+				0D76442A9913CC9DD613080D /* FocalSettings.swift */,
 				AE8D76CC96A770503706BA1F /* ImageRaterApp.swift */,
 			);
 			path = App;
@@ -365,6 +368,7 @@
 				75B45A62C0D7F902ECE2CD15 /* CullResult.swift in Sources */,
 				AA4F452486AFB3228199079E /* DetailView.swift in Sources */,
 				AAF6A01F23B8462ECACDDEC0 /* DiversityScorer.swift in Sources */,
+				8CA3DF7E930703084BB8568E /* FocalSettings.swift in Sources */,
 				AF5037C13064861AF75F5B6A /* GridView.swift in Sources */,
 				970AD203434B479C5DCE02BE /* ImageImporter.swift in Sources */,
 				4C273439B8B8C816279C5B6E /* ImageMetadata.swift in Sources */,

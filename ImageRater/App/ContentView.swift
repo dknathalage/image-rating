@@ -56,8 +56,10 @@ struct ContentView: View {
     @State private var sessionToRemove: Session? = nil
     @State private var ratingFilter: Set<Int> = []
     @State private var showProcessingSheet = false
-    @State private var cullStrictness: Double = 0.5
-    @State private var cellSize: CGFloat = 160
+    @AppStorage(FocalSettings.cullStrictness) private var cullStrictness: Double = FocalSettings.defaultCullStrictness
+    @AppStorage(FocalSettings.defaultCellSize) private var cellSizeValue: Double = FocalSettings.defaultCellSizeValue
+    @AppStorage(FocalSettings.autoWriteXMP) private var autoWriteXMP: Bool = FocalSettings.defaultAutoWriteXMP
+    private var cellSize: CGFloat { CGFloat(cellSizeValue) }
     @State private var detailRecord: ImageRecord? = nil
     @State private var showAIProgressSheet = false
     @State private var showCompareSheet = false
@@ -262,14 +264,14 @@ struct ContentView: View {
                 }
                 ToolbarItem(placement: .primaryAction) {
                     ControlGroup {
-                        Button(action: { cellSize = max(100, cellSize - 30) }) {
+                        Button(action: { cellSizeValue = max(100, cellSizeValue - 30) }) {
                             Image(systemName: "minus")
                         }
-                        .disabled(cellSize <= 100)
-                        Button(action: { cellSize = min(320, cellSize + 30) }) {
+                        .disabled(cellSizeValue <= 100)
+                        Button(action: { cellSizeValue = min(320, cellSizeValue + 30) }) {
                             Image(systemName: "plus")
                         }
-                        .disabled(cellSize >= 320)
+                        .disabled(cellSizeValue >= 320)
                     }
                     .help("Thumbnail size")
                 }
@@ -290,11 +292,8 @@ struct ContentView: View {
             }
         }
         keyboard.onReject = { setRating(1) }
+        FocalSettings.migrateIfNeeded()
         keyboard.start()
-        let ud = UserDefaults.standard
-        if ud.object(forKey: "cullStrictness") != nil {
-            cullStrictness = ud.double(forKey: "cullStrictness")
-        }
     }
 
     // MARK: - Navigation
@@ -415,9 +414,11 @@ struct ContentView: View {
             selectedIDs = [next]
         }
 
-        Task.detached(priority: .utility) {
-            for t in tasks where t.stars > 0 {
-                try? MetadataWriter.writeSidecar(stars: t.stars, for: t.url)
+        if autoWriteXMP {
+            Task.detached(priority: .utility) {
+                for t in tasks where t.stars > 0 {
+                    try? MetadataWriter.writeSidecar(stars: t.stars, for: t.url)
+                }
             }
         }
     }
@@ -428,8 +429,10 @@ struct ContentView: View {
         try? ctx.save()
         let effectiveStars = stars > 0 ? stars : Int(record.ratingStars?.int16Value ?? 0)
         guard let path = record.filePath, effectiveStars > 0 else { return }
-        Task.detached(priority: .utility) {
-            try? MetadataWriter.writeSidecar(stars: effectiveStars, for: URL(filePath: path))
+        if autoWriteXMP {
+            Task.detached(priority: .utility) {
+                try? MetadataWriter.writeSidecar(stars: effectiveStars, for: URL(filePath: path))
+            }
         }
     }
 
@@ -523,7 +526,7 @@ struct ContentView: View {
     }
 
     private func applyStrictness(_ s: Double) {
-        UserDefaults.standard.set(s, forKey: "cullStrictness")
+        // cullStrictness is @AppStorage — persists automatically
     }
 
     private func runPipeline(session: Session) {
