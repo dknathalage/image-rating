@@ -72,6 +72,24 @@ struct ThumbnailCell: View {
                     .cornerRadius(6)
                 }
             }
+            .overlay(alignment: .bottomLeading) {
+                if record.clusterRank == 1 && record.clusterID >= 0 {
+                    Text("C")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 3).padding(.vertical, 1)
+                        .background(Color.purple.opacity(0.8))
+                        .clipShape(RoundedRectangle(cornerRadius: 2))
+                        .padding(4)
+                }
+            }
+            .overlay {
+                if record.diversityFactor > 0 && record.diversityFactor < 0.60 {
+                    Color.black.opacity(0.30)
+                        .cornerRadius(6)
+                        .allowsHitTesting(false)
+                }
+            }
 
             ScoreBadge(
                 stars: Int(record.userOverride?.int16Value ?? record.ratingStars?.int16Value ?? 0),
