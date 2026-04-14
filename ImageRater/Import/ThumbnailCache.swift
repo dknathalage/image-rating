@@ -15,8 +15,8 @@ actor ThumbnailCache {
         let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
         diskCacheURL = caches.appendingPathComponent("ImageRater/thumbnails")
         try? FileManager.default.createDirectory(at: diskCacheURL, withIntermediateDirectories: true)
-        memCache.countLimit = 500
-        memCache.totalCostLimit = 400 * 1024 * 1024 // 400 MB
+        memCache.countLimit = 300
+        memCache.totalCostLimit = 150 * 1024 * 1024 // 150 MB — NSCache evicts under pressure
     }
 
     /// Returns thumbnail for the given URL at requested size.
@@ -53,31 +53,34 @@ actor ThumbnailCache {
         }
 
         guard let nsImage else { return nil }
-        // Cost in bytes: width × height × 4 bytes (RGBA) so totalCostLimit is enforced
-        let cost = Int(size.width * size.height) * 4
-        memCache.setObject(nsImage, forKey: key as NSString, cost: cost)
+        // Don't mem-cache large detail-view thumbnails — they bloat memory fast
+        if size.width <= 400 {
+            let cost = Int(size.width * size.height) * 4
+            memCache.setObject(nsImage, forKey: key as NSString, cost: cost)
+        }
         return nsImage
     }
 
-    /// Enqueue background thumbnail generation for a list of URLs without blocking.
-    /// Uses .background QoS so on-screen cell loads always take priority.
-    func prefetch(urls: [URL], size: CGSize) {
+    /// Prefetch up to `limit` uncached thumbnails in the background.
+    /// Intentionally capped — prefetching everything in a large session causes huge memory spikes.
+    func prefetch(urls: [URL], size: CGSize, limit: Int = 60) {
+        var queued = 0
         for url in urls {
+            guard queued < limit else { break }
             let key = Self.cacheKey(for: url, size: size)
-            // Skip if already in memory cache
             if memCache.object(forKey: key as NSString) != nil { continue }
             let diskURL = diskCacheURL.appendingPathComponent(key + ".jpg")
-            Self.decodeQueue.addOperation {
-                // Skip if disk cache already exists
-                guard !FileManager.default.fileExists(atPath: diskURL.path) else { return }
+            if FileManager.default.fileExists(atPath: diskURL.path) { continue }
+            let op = BlockOperation {
                 guard let cgImage = ThumbnailCache.decodeThumbnail(url: url, size: size) else { return }
                 let rep = NSBitmapImageRep(cgImage: cgImage)
                 if let jpegData = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.8]) {
                     try? jpegData.write(to: diskURL)
                 }
             }
-            // Lower priority for prefetch ops
-            Self.decodeQueue.operations.last?.queuePriority = .low
+            op.queuePriority = .low
+            Self.decodeQueue.addOperation(op)
+            queued += 1
         }
     }
 
@@ -91,10 +94,11 @@ actor ThumbnailCache {
         }
     }
 
-    // Throttle concurrent RAW/ImageIO decodes to avoid dyld lock contention on first-time plugin init.
+    // Throttle concurrent RAW/ImageIO decodes — LibRaw holds ~50–300 MB per decode.
+    // 4 concurrent = up to ~1.2 GB peak during prefetch; safe headroom on 16 GB machines.
     private static let decodeQueue: OperationQueue = {
         let q = OperationQueue()
-        q.maxConcurrentOperationCount = 6
+        q.maxConcurrentOperationCount = 4
         q.qualityOfService = .userInitiated
         return q
     }()

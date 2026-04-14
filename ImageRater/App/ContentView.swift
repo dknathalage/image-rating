@@ -269,9 +269,17 @@ struct ContentView: View {
                     }
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    Slider(value: $cellSize, in: 100...320, step: 10)
-                        .frame(width: 80)
-                        .help("Thumbnail size")
+                    ControlGroup {
+                        Button(action: { cellSize = max(100, cellSize - 30) }) {
+                            Image(systemName: "minus")
+                        }
+                        .disabled(cellSize <= 100)
+                        Button(action: { cellSize = min(320, cellSize + 30) }) {
+                            Image(systemName: "plus")
+                        }
+                        .disabled(cellSize >= 320)
+                    }
+                    .help("Thumbnail size")
                 }
             }
         }
