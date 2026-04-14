@@ -189,40 +189,24 @@ Regressions (Spearman worse than predecessor) marked with ⚠️.
 6. `./testing/bench/run.py leaderboard` — regenerates markdown.
 Regression tracking is manual via the leaderboard + git log. No CI gate.
 
-## Phased delivery
+## Deliverables (implementation order)
 
-Build simplest end-to-end slice first. Validate locally before expanding.
+All delivered in one plan. No phasing.
 
-### Phase 0 — MVP smoke test (this plan)
-
-Goal: run defaults against a small AVA subset end-to-end, print metrics. Prove the pipeline works before investing in tuning infrastructure.
-
-1. `testing/bench/dataset_ava.py` — download + parse AVA; **500-image stratified subset** (not full 20k).
+1. `testing/bench/dataset_ava.py` — download + parse AVA; start with 500-image stratified subset for dev iteration, scale to full 20k eval split for final.
 2. `FocalScorer` Swift CLI target — decodes images (LibRaw) + runs the 3 `.mlmodelc` models, emits per-image sub-scores JSON. Reuses `RatingPipeline.loadBundledModels()`.
-3. `testing/bench/score.py` — invokes `FocalScorer`, caches JSON output.
+3. `testing/bench/score.py` — invokes `FocalScorer`, caches JSON output by content hash.
 4. `testing/bench/ensemble.py` — mirrors Swift combining + percentile bucket logic (`combinedQuality` + `percentileStars`).
-5. `testing/bench/metrics.py` — Spearman, Kendall, MAE, off-by-one, exact-match, 5×5 confusion.
-6. `testing/bench/run.py` — one-command eval with default params; prints metrics to stdout.
-
-**Success criteria:** `run.py` runs locally without errors, reports Spearman for defaults `(wTech=0.4, wAes=0.4, wClip=0.2, strictness=0.5)`. Sanity baseline for whether the current ensemble correlates with AVA at all.
-
-### Phase 1 — optimizer + leaderboard
-
-- `testing/bench/optimize.py` — Optuna TPE param search over the tuning surface.
-- `testing/bench/leaderboard.py` + `LEADERBOARD.md` generation, committed + auto-regenerated.
-- Scale up AVA subset to full 20k eval split.
-
-### Phase 2 — ablation + model swaps
-
-- Ensemble membership sweep across the 7 subset configurations.
-- Candidate swaps (NIMA first, then MUSIQ / MANIQA / HyperIQA as needed).
-
-### Phase 3 — param bridge to shipping app
-
-- `params.current.json` as single source of truth.
-- `scripts/gen_defaults.py` writes `ImageRater/App/FocalSettings+Generated.swift`.
-- xcodegen build phase wires it in.
-- Extract hardcoded `bucketEdges` and `clipLogitScale` into `FocalSettings`.
+5. `testing/bench/metrics.py` — Spearman, Kendall, MAE, off-by-one, exact-match, 5×5 confusion, worst-10 diagnostic.
+6. `testing/bench/optimize.py` — Optuna TPE param search over the full tuning surface.
+7. Ensemble ablation sweep — drop-one / keep-one evaluation runner.
+8. Model swap slots (NIMA-VGG16 first; MUSIQ / MANIQA / HyperIQA on demand) behind the same scorer JSON schema.
+9. `testing/bench/leaderboard.py` + `LEADERBOARD.md` regeneration.
+10. `testing/bench/run.py` — single-command orchestration for score / optimize / eval / leaderboard.
+11. Extract `bucketEdges` and `clipLogitScale` from hardcoded values into `FocalSettings`.
+12. `scripts/gen_defaults.py` + `ImageRater/App/FocalSettings+Generated.swift` bridge.
+13. xcodegen `project.yml` build phase runs `gen_defaults.py` before compile.
+14. `testing/bench/params.current.json` as single source of truth for shipping parameters.
 
 ## Open questions / deferred
 
