@@ -194,6 +194,10 @@ struct ContentView: View {
             .onAppear(perform: handleAppear)
             .onDisappear { keyboard.stop() }
             .onChange(of: selectedSession) { _, _ in }
+            .onChange(of: anchorID) { _, id in
+                guard detailRecord != nil, let id else { return }
+                detailRecord = ctx.object(with: id) as? ImageRecord
+            }
             .modifier(FilterChangeModifier(
                 selectedSession: $selectedSession,
                 ratingFilter: $ratingFilter,
