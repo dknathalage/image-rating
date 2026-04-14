@@ -268,23 +268,23 @@ actor ProcessingQueue {
 
     /// Assigns 1–5 stars using a power-curve skew on percentile rank.
     /// γ = 10^(2s−1): s=0→γ=0.1 (lenient), s=0.5→γ=1 (uniform), s=1→γ=10 (strict)
-    /// Buckets are evenly spaced [0.2, 0.4, 0.6, 0.8] in warped space.
+    /// Bucket edges read from FocalSettings (tunable by optimizer; default [0.2, 0.4, 0.6, 0.8]).
     private func percentileStars(scores: [Float], strictness: Double) -> [Int] {
         let n = scores.count
         guard n > 0 else { return [] }
         let gamma = pow(10.0, 2 * min(max(strictness, 0), 1) - 1)
-
+        let (e1, e2, e3, e4) = FocalSettings.resolvedBucketEdges()
         let sorted = scores.enumerated().sorted { $0.element < $1.element }
         var result = [Int](repeating: 3, count: n)
         for (rank, (originalIndex, _)) in sorted.enumerated() {
             let pct = Double(rank) / Double(n)
             let warped = pow(pct == 0 ? 1e-9 : pct, gamma)
             result[originalIndex] = switch warped {
-            case ..<0.20:       1
-            case 0.20..<0.40:   2
-            case 0.40..<0.60:   3
-            case 0.60..<0.80:   4
-            default:            5
+            case ..<e1:        1
+            case e1..<e2:      2
+            case e2..<e3:      3
+            case e3..<e4:      4
+            default:           5
             }
         }
         return result

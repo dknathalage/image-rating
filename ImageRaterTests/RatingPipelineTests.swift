@@ -53,6 +53,33 @@ final class RatingPipelineTests: XCTestCase {
         XCTAssertLessThanOrEqual(score, 1.0)
     }
 
+    // MARK: - FocalSettings bucket edges + logit scale
+
+    func testBucketEdgesReadFromSettings() {
+        let ud = UserDefaults.standard
+        let keys = [
+            FocalSettings.bucketEdge1,
+            FocalSettings.bucketEdge2,
+            FocalSettings.bucketEdge3,
+            FocalSettings.bucketEdge4,
+        ]
+        defer { keys.forEach { ud.removeObject(forKey: $0) } }
+        ud.set(0.1, forKey: FocalSettings.bucketEdge1)
+        ud.set(0.3, forKey: FocalSettings.bucketEdge2)
+        ud.set(0.5, forKey: FocalSettings.bucketEdge3)
+        ud.set(0.7, forKey: FocalSettings.bucketEdge4)
+        let edges = FocalSettings.resolvedBucketEdges()
+        XCTAssertEqual(edges.0, 0.1, accuracy: 1e-9)
+        XCTAssertEqual(edges.3, 0.7, accuracy: 1e-9)
+    }
+
+    func testClipLogitScaleReadFromSettings() {
+        let ud = UserDefaults.standard
+        defer { ud.removeObject(forKey: FocalSettings.clipLogitScale) }
+        ud.set(55.5, forKey: FocalSettings.clipLogitScale)
+        XCTAssertEqual(FocalSettings.resolvedClipLogitScale(), 55.5, accuracy: 1e-9)
+    }
+
     // MARK: - Helpers
 
     private func makeSolidColorCGImage(size: Int) -> CGImage {

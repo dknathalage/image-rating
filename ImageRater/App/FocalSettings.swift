@@ -17,6 +17,15 @@ enum FocalSettings {
     /// Weight for CLIP-IQA score. Default: 0.2
     static let weightClip        = "focal.rating.weightClip"
 
+    // MARK: - Star bucket edges (percentile cut-points in warped space)
+    static let bucketEdge1       = "focal.rating.bucketEdge1"
+    static let bucketEdge2       = "focal.rating.bucketEdge2"
+    static let bucketEdge3       = "focal.rating.bucketEdge3"
+    static let bucketEdge4       = "focal.rating.bucketEdge4"
+
+    // MARK: - CLIP-IQA softmax temperature
+    static let clipLogitScale    = "focal.rating.clipLogitScale"
+
     // MARK: - UI
     /// Default thumbnail cell size in points. Default: 160
     static let defaultCellSize   = "focal.ui.defaultCellSize"
@@ -30,8 +39,35 @@ enum FocalSettings {
     static let defaultWeightTechnical: Double = 0.4
     static let defaultWeightAesthetic: Double = 0.4
     static let defaultWeightClip: Double      = 0.2
+    static let defaultBucketEdge1: Double     = 0.20
+    static let defaultBucketEdge2: Double     = 0.40
+    static let defaultBucketEdge3: Double     = 0.60
+    static let defaultBucketEdge4: Double     = 0.80
+    static let defaultClipLogitScale: Double  = 100.0
     static let defaultCellSizeValue: Double   = 160
     static let defaultAutoWriteXMP: Bool      = true
+
+    // MARK: - Resolved accessors (UserDefaults override → default)
+
+    static func resolvedBucketEdges() -> (Double, Double, Double, Double) {
+        let ud = UserDefaults.standard
+        func r(_ key: String, _ d: Double) -> Double {
+            ud.object(forKey: key) != nil ? ud.double(forKey: key) : d
+        }
+        return (
+            r(bucketEdge1, defaultBucketEdge1),
+            r(bucketEdge2, defaultBucketEdge2),
+            r(bucketEdge3, defaultBucketEdge3),
+            r(bucketEdge4, defaultBucketEdge4)
+        )
+    }
+
+    static func resolvedClipLogitScale() -> Double {
+        let ud = UserDefaults.standard
+        return ud.object(forKey: clipLogitScale) != nil
+            ? ud.double(forKey: clipLogitScale)
+            : defaultClipLogitScale
+    }
 
     // MARK: - Migration
     /// Migrate legacy key written by pre-Focal versions. Call once at app launch.

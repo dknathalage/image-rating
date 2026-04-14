@@ -49,7 +49,8 @@ enum RatingPipeline {
             async let clipEmbTask    = inferEmbedding(image: image, model: models.clip,  inputSize: 224)
 
             let (tech, aes, emb) = try await (techScoreTask, aesScoreTask, clipEmbTask)
-            let clip     = clipIQAScore(embedding: emb)
+            let logitScale = Float(FocalSettings.resolvedClipLogitScale())
+            let clip     = clipIQAScore(embedding: emb, logitScale: logitScale)
             let combined = combinedQuality(technical: tech, aesthetic: aes, semantic: clip, weights: weights)
 
             log.info("TOPIQ-NR \(tech, format: .fixed(precision: 3))  TOPIQ-Swin \(aes, format: .fixed(precision: 3))  CLIP-IQA+ \(clip, format: .fixed(precision: 3))  combined \(combined, format: .fixed(precision: 3))")
