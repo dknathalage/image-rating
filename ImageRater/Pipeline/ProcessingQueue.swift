@@ -90,9 +90,8 @@ actor ProcessingQueue {
                     blurThreshold:    configSnapshot.blurThreshold,
                     earThreshold:     configSnapshot.earThreshold,
                     exposureLeniency: configSnapshot.exposureLeniency)
-                let ratingResult = hasOverride ? RatingResult.unrated
-                                 : await RatingPipeline.rate(image: cgImage, models: models)
-                let cullScores = await cullTask
+                async let ratingTask = rateIfNeeded(image: cgImage, models: models, hasOverride: hasOverride)
+                let (cullScores, ratingResult) = await (cullTask, ratingTask)
 
                 await context.perform { [self] in
                     guard let r = try? self.context.existingObject(with: imageID) as? ImageRecord else { return }
@@ -192,6 +191,15 @@ actor ProcessingQueue {
             }
             try self.context.save()
         }
+    }
+
+    private func rateIfNeeded(
+        image: CGImage,
+        models: RatingPipeline.BundledModels,
+        hasOverride: Bool
+    ) async -> RatingResult {
+        guard !hasOverride else { return .unrated }
+        return await RatingPipeline.rate(image: image, models: models)
     }
 
     private func writeSidecars(imageIDs: [NSManagedObjectID], sessionID: NSManagedObjectID) async {
