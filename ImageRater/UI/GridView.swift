@@ -110,18 +110,12 @@ struct GridView: View {
                 .background(
                     GeometryReader { geo in
                         Color.clear
-                            .onAppear {
-                                Task { @MainActor in
-                                    viewportHeight = geo.size.height
-                                }
-                            }
+                            .onAppear { viewportHeight = geo.size.height }
                             .onChange(of: geo.size) { _, s in viewportHeight = s.height }
                     }
                 )
                 .onPreferenceChange(ScrollOffsetKey.self) { offset in
-                    Task { @MainActor in
-                        scrollOffset = offset
-                    }
+                    scrollOffset = offset
                 }
                 .contextMenu {
                     if !selectedIDs.isEmpty {
