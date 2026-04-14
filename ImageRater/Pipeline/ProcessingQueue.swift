@@ -138,8 +138,12 @@ actor ProcessingQueue {
     // MARK: Private
 
     private func runDiversityPass(sessionID: NSManagedObjectID) async throws {
-        // Load embeddings and quality scores for all rated (or done) images
-        let (imageIDs, embeddings, qualityScores): ([NSManagedObjectID], [[Float]], [Float]) =
+        // Load embeddings and quality scores for all rated (or done) images.
+        // hasEmbedding[i] is true only when clipEmbedding was written (i.e., rating succeeded).
+        // Overridden images and decode-error images have no embedding — exclude them from
+        // clustering/MMR to avoid zero-vector cosine similarity corruption.
+        let (imageIDs, embeddings, qualityScores, hasEmbedding):
+            ([NSManagedObjectID], [[Float]], [Float], [Bool]) =
             try await context.perform { [self] in
                 guard let session = try? self.context.existingObject(with: sessionID) as? Session,
                       let images = session.images?.allObjects as? [ImageRecord] else {
@@ -150,29 +154,49 @@ actor ProcessingQueue {
                     .sorted { ($0.filePath ?? "") < ($1.filePath ?? "") }
 
                 let ids = sorted.map { $0.objectID }
+                let hasEmb = sorted.map { $0.clipEmbedding != nil }
                 let embs: [[Float]] = sorted.map { r in
-                    guard let data = r.clipEmbedding else { return [Float](repeating: 0, count: 512) }
+                    guard let data = r.clipEmbedding else { return [] }
                     let count = data.count / MemoryLayout<Float>.size
                     return data.withUnsafeBytes { Array($0.bindMemory(to: Float.self).prefix(count)) }
                 }
                 let scores = sorted.map { $0.combinedQualityScore }
-                return (ids, embs, scores)
+                return (ids, embs, scores, hasEmb)
             }
 
         guard !imageIDs.isEmpty else { return }
 
-        // Step A: threshold clustering → clusterID
-        let clusterIDs = DiversityScorer.clusterByThreshold(embeddings: embeddings, threshold: 0.92)
+        // Only images with valid 512-dim embeddings participate in clustering and MMR.
+        // Others receive diversityFactor=1.0 (no penalty) and clusterID=-1.
+        let validIndices = hasEmbedding.indices.filter { hasEmbedding[$0] }
+        let validEmbeddings  = validIndices.map { embeddings[$0] }
+        let validQuality     = validIndices.map { qualityScores[$0] }
 
-        // Step B: MMR ordering → clusterRank + diversityFactor
-        let mmrItems = DiversityScorer.mmrOrder(embeddings: embeddings, qualityScores: qualityScores, lambda: 0.6)
-        let mmrByIdx = Dictionary(uniqueKeysWithValues: mmrItems.map { ($0.originalIndex, $0) })
+        // Per-image diversity results (defaults for images without embeddings)
+        var clusterIDs      = [Int32](repeating: -1,  count: imageIDs.count)
+        var clusterRanks    = [Int](repeating: 1,     count: imageIDs.count)
+        var diversityFactors = [Float](repeating: 1.0, count: imageIDs.count)
 
-        // Compute finalScore per image
-        var finalScores = [Float](repeating: 0, count: imageIDs.count)
-        for item in mmrItems {
-            finalScores[item.originalIndex] = qualityScores[item.originalIndex] * item.diversityFactor
+        if !validEmbeddings.isEmpty {
+            // Step A: threshold clustering → clusterID
+            let validClusterIDs = DiversityScorer.clusterByThreshold(
+                embeddings: validEmbeddings, threshold: 0.92)
+            for (vIdx, iIdx) in validIndices.enumerated() {
+                clusterIDs[iIdx] = validClusterIDs[vIdx]
+            }
+
+            // Step B: MMR ordering → clusterRank + diversityFactor
+            let mmrItems = DiversityScorer.mmrOrder(
+                embeddings: validEmbeddings, qualityScores: validQuality, lambda: 0.6)
+            for item in mmrItems {
+                let iIdx = validIndices[item.originalIndex]
+                clusterRanks[iIdx]    = item.clusterRank
+                diversityFactors[iIdx] = item.diversityFactor
+            }
         }
+
+        // Compute finalScore for ALL images (including those without embeddings)
+        let finalScores = qualityScores.indices.map { qualityScores[$0] * diversityFactors[$0] }
 
         // Percentile normalisation → star ratings
         let starRatings = DiversityScorer.percentileToStars(finalScores: finalScores)
@@ -181,10 +205,9 @@ actor ProcessingQueue {
         try await context.perform { [self] in
             for (i, imageID) in imageIDs.enumerated() {
                 guard let r = try? self.context.existingObject(with: imageID) as? ImageRecord else { continue }
-                let mmr = mmrByIdx[i]
                 r.clusterID       = clusterIDs[i]
-                r.clusterRank     = Int32(mmr?.clusterRank ?? 1)
-                r.diversityFactor = mmr?.diversityFactor ?? 1.0
+                r.clusterRank     = Int32(clusterRanks[i])
+                r.diversityFactor = diversityFactors[i]
                 r.finalScore      = finalScores[i]
                 r.ratingStars     = NSNumber(value: starRatings[i])
                 r.processState    = ProcessState.done
