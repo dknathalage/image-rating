@@ -104,18 +104,6 @@ struct ContentView: View {
             }
         }
         .navigationTitle("Sessions")
-        .toolbar {
-            ToolbarItem {
-                Button(action: openFolder) {
-                    Label("Open Folder", systemImage: "folder.badge.plus")
-                }
-            }
-            ToolbarItem {
-                Button { showModelStore = true } label: {
-                    Label("Models", systemImage: "square.and.arrow.down")
-                }
-            }
-        }
     }
 
     // MARK: - Content panel
@@ -186,47 +174,6 @@ struct ContentView: View {
                     rateRecordDirect(record, stars: stars)
                 }
             }
-            .toolbar {
-                ToolbarItem {
-                    Button(action: { showProcessingSheet = true }) {
-                        Label("Process", systemImage: "wand.and.stars")
-                    }
-                    .disabled(processingStatus != nil)
-                }
-                ToolbarItem {
-                    Button(action: { showResetConfirm = true }) {
-                        Label("Reset", systemImage: "arrow.counterclockwise")
-                    }
-                    .disabled(processingStatus != nil)
-                }
-                ToolbarItem {
-                    Button(action: { exportScores(session: session) }) {
-                        Label("Export Scores", systemImage: "square.and.arrow.up")
-                    }
-                    .disabled(processingStatus != nil)
-                }
-                // Compare button — visible when 2 or 3 images selected
-                if selectedIDs.count >= 2 && selectedIDs.count <= 3 {
-                    ToolbarItem {
-                        Button(action: { showCompareSheet = true }) {
-                            Label("Compare", systemImage: "rectangle.split.2x1")
-                        }
-                    }
-                }
-                // Grid size slider
-                ToolbarItem {
-                    HStack(spacing: 4) {
-                        Image(systemName: "photo")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Slider(value: $cellSize, in: 100...320, step: 10)
-                            .frame(width: 90)
-                        Image(systemName: "photo")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
             .confirmationDialog("Reset all ratings?",
                                 isPresented: $showResetConfirm,
                                 titleVisibility: .visible) {
@@ -283,6 +230,50 @@ struct ContentView: View {
             sidebar
         } detail: {
             contentPanel
+        }
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                Button(action: openFolder) {
+                    Label("Open Folder", systemImage: "folder.badge.plus")
+                }
+            }
+            ToolbarItem(placement: .navigation) {
+                Button { showModelStore = true } label: {
+                    Label("Models", systemImage: "square.and.arrow.down")
+                }
+            }
+            if selectedSession != nil {
+                ToolbarItem(placement: .primaryAction) {
+                    Button(action: { showProcessingSheet = true }) {
+                        Label("Process", systemImage: "wand.and.stars")
+                    }
+                    .disabled(processingStatus != nil)
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button(action: { showResetConfirm = true }) {
+                        Label("Reset", systemImage: "arrow.counterclockwise")
+                    }
+                    .disabled(processingStatus != nil)
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button(action: { if let s = selectedSession { exportScores(session: s) } }) {
+                        Label("Export", systemImage: "square.and.arrow.up")
+                    }
+                    .disabled(processingStatus != nil)
+                }
+                if selectedIDs.count >= 2 && selectedIDs.count <= 3 {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: { showCompareSheet = true }) {
+                            Label("Compare", systemImage: "rectangle.split.2x1")
+                        }
+                    }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Slider(value: $cellSize, in: 100...320, step: 10)
+                        .frame(width: 80)
+                        .help("Thumbnail size")
+                }
+            }
         }
     }
 
