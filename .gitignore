@@ -34,6 +34,9 @@ testing/
 # Tooling
 .superpowers/
 
+# Git worktrees
+.worktrees/
+
 # ML model binaries (large, distribute via releases not git)
 *.mlmodelc/
 ImageRater/MLModels/
