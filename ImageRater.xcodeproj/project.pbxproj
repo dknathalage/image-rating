@@ -42,6 +42,8 @@
 		F9F73830D9935D178213006D /* ScoreBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = AFD89865BC2C2BA6A2E828E1 /* ScoreBadge.swift */; };
 		8D2FDD86E2F54E159953AE4E /* ImageMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F4B12D0DAAA460CA37ED8FE /* ImageMetadata.swift */; };
 		B320CB30EFD04AEC9C73667B /* ZoomableImageView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E72FFC138374B82B144061C /* ZoomableImageView.swift */; };
+		AA11223344556677889900AB /* DiversityScorer.swift in Sources */ = {isa = PBXBuildFile; fileRef = BB11223344556677889900CD /* DiversityScorer.swift */; };
+		CC11223344556677889900EF /* DiversityScorerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD11223344556677889900F0 /* DiversityScorerTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -96,6 +98,8 @@
 		FD4392FCA13C79B275636586 /* LibRawBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LibRawBridge.h; sourceTree = "<group>"; };
 		3F4B12D0DAAA460CA37ED8FE /* ImageMetadata.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageMetadata.swift; sourceTree = "<group>"; };
 		6E72FFC138374B82B144061C /* ZoomableImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomableImageView.swift; sourceTree = "<group>"; };
+		BB11223344556677889900CD /* DiversityScorer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiversityScorer.swift; sourceTree = "<group>"; };
+		DD11223344556677889900F0 /* DiversityScorerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiversityScorerTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -153,6 +157,7 @@
 			isa = PBXGroup;
 			children = (
 				3BA85CE95545757BDA458D16 /* CullPipeline.swift */,
+				BB11223344556677889900CD /* DiversityScorer.swift */,
 				04B0B3EF2D596CB97DF5278D /* ProcessingQueue.swift */,
 				74FAE79C691882738757D09E /* RatingPipeline.swift */,
 			);
@@ -183,6 +188,7 @@
 			isa = PBXGroup;
 			children = (
 				F52DFF241767600BD466630B /* CullPipelineTests.swift */,
+				DD11223344556677889900F0 /* DiversityScorerTests.swift */,
 				6B4C6A2E1C2B71C70F55AE87 /* ImageRaterTests.swift */,
 				BA75B13E16664630B52B73C0 /* ImageRecordMigrationTests.swift */,
 				28FD798FAFEFD3ADE86B48B0 /* IntegrationTests.swift */,
@@ -347,6 +353,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E0B6EF5741A3AFCB382F26A8 /* CullPipelineTests.swift in Sources */,
+				CC11223344556677889900EF /* DiversityScorerTests.swift in Sources */,
 				160FE7872D2B8803590A215D /* ImageRaterTests.swift in Sources */,
 				475B892CC4D64D99B23C4997 /* ImageRecordMigrationTests.swift in Sources */,
 				E500AAB0F68715925DC455BC /* IntegrationTests.swift in Sources */,
@@ -364,6 +371,7 @@
 			files = (
 				35EE8069B023B37EDE7D0BD1 /* ContentView.swift in Sources */,
 				309F86F515ECCB91E16E07A6 /* CullPipeline.swift in Sources */,
+				AA11223344556677889900AB /* DiversityScorer.swift in Sources */,
 				55996786456F392BB67EB921 /* CullResult.swift in Sources */,
 				3A35D7F6D67AAE6548C47B54 /* DetailView.swift in Sources */,
 				753DE1E72AE20DE5227827BE /* GridView.swift in Sources */,
