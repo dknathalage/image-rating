@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreData
 
 struct DetailView: View {
     @ObservedObject var record: ImageRecord
@@ -132,10 +133,38 @@ struct DetailView: View {
                     }
                 }
 
-                if (record.ratingStars?.int16Value ?? 0) > 0 {
+                // AI SCORES — shown if ensemble has run
+                if record.combinedQualityScore > 0 {
                     metaSectionDivider("AI Scores")
-                    metaRow("Technical", String(format: "%.2f", record.clipScore?.floatValue ?? 0))
-                    metaRow("Aesthetic", String(format: "%.2f", record.aestheticScore?.floatValue ?? 0))
+                    ScoreBarView(label: "Technical", rawScore: record.topiqTechnicalScore)
+                    ScoreBarView(label: "Aesthetic", rawScore: record.topiqAestheticScore)
+                    ScoreBarView(label: "Semantic",  rawScore: record.clipIQAScore)
+                    Divider().padding(.vertical, 2)
+                    metaRow("Combined", String(format: "%.1f", record.combinedQualityScore * 10))
+                    if let s = record.ratingStars, s.int16Value > 0 {
+                        metaRow("AI stars", String(repeating: "★", count: Int(s.int16Value)))
+                    }
+                    if let o = record.userOverride, o.int16Value > 0 {
+                        metaRow("Manual", String(repeating: "★", count: Int(o.int16Value)))
+                    }
+                }
+
+                // CHARACTERISTICS — shown once cull + diversity pass have run
+                if record.blurScore > 0 || record.clusterRank > 0 {
+                    metaSectionDivider("Characteristics")
+                    if record.blurScore > 0 {
+                        let blurLabel = record.blurScore > 300 ? "Sharp"
+                                      : record.blurScore > 100 ? "Soft" : "Blurry"
+                        metaRow("Blur", blurLabel)
+                    }
+                    if record.exposureScore != 0 {
+                        metaRow("Exposure", exposureLabel(record.exposureScore))
+                    }
+                    if record.clusterRank > 0, let ctx = record.managedObjectContext {
+                        let size = clusterSize(id: record.clusterID, in: ctx)
+                        metaRow("Cluster", "#\(record.clusterID) · rank \(record.clusterRank) of \(size)")
+                        metaRow("Diversity", String(format: "%.2f×", record.diversityFactor))
+                    }
                 }
 
                 metaSectionDivider("Rating")
@@ -216,5 +245,46 @@ struct DetailView: View {
             get: { record.userOverride?.int16Value ?? 0 },
             set: { onRate(Int($0)) }
         )
+    }
+
+    private func exposureLabel(_ score: Float) -> String {
+        switch score {
+        case let s where s >  1.5: return String(format: "+%.1f EV (over)", s)
+        case let s where s < -1.5: return String(format: "%.1f EV (under)", s)
+        case let s where s >  0.3: return String(format: "+%.1f EV", s)
+        case let s where s < -0.3: return String(format: "%.1f EV", s)
+        default: return "Normal"
+        }
+    }
+
+    private func clusterSize(id: Int32, in ctx: NSManagedObjectContext) -> Int {
+        let req = ImageRecord.fetchRequest()
+        req.predicate = NSPredicate(format: "clusterID == %d", id)
+        return (try? ctx.count(for: req)) ?? 0
+    }
+}
+
+/// Progress bar showing a [0,1] raw score as a labelled [0,10] bar.
+private struct ScoreBarView: View {
+    let label: String
+    let rawScore: Float   // [0, 1] as stored in CoreData
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Text(label).font(.caption2).foregroundStyle(.secondary)
+                Spacer()
+                Text(String(format: "%.1f", rawScore * 10))
+                    .font(.caption2.monospacedDigit())
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 2).fill(Color.secondary.opacity(0.2))
+                    RoundedRectangle(cornerRadius: 2).fill(Color.accentColor)
+                        .frame(width: geo.size.width * CGFloat(min(rawScore, 1)))
+                }
+            }
+            .frame(height: 4)
+        }
     }
 }
