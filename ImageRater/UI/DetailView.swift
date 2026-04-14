@@ -1,6 +1,25 @@
 import SwiftUI
 import CoreData
 
+/// Returns current wall-clock time as "HH:mm:ss.SSS" for log correlation.
+private func ts() -> String {
+    var tv = timeval()
+    gettimeofday(&tv, nil)
+    let ms = tv.tv_usec / 1000
+    let s  = Int(tv.tv_sec) % 60
+    let m  = (Int(tv.tv_sec) / 60) % 60
+    let h  = (Int(tv.tv_sec) / 3600) % 24
+    return String(format: "%02d:%02d:%02d.%03d", h, m, s, ms)
+}
+
+/// Suspends until the next DispatchQueue.main run-loop iteration, ensuring we are
+/// outside any ongoing SwiftUI view-body computation before mutating @State.
+private func nextRunLoop() async {
+    await withCheckedContinuation { cont in
+        DispatchQueue.main.async { cont.resume() }
+    }
+}
+
 struct DetailView: View {
     @ObservedObject var record: ImageRecord
     let onPrev: () -> Void
@@ -20,15 +39,43 @@ struct DetailView: View {
                 .frame(width: 260)
         }
         .task(id: record.objectID) {
-            fullImage = nil
+            // Keep previous image visible — no blank flash between navigation steps.
             imageMeta = nil
             zoomScale = 1.0
+            // Fence: wait for next run-loop iteration so SwiftUI finishes the current
+            // render pass before any @State mutations below.
+            await nextRunLoop()
+            let t0 = CFAbsoluteTimeGetCurrent()
+            let name = URL(filePath: record.filePath ?? "").lastPathComponent
             let url = URL(filePath: record.filePath ?? "")
-            async let thumb = ThumbnailCache.shared.thumbnail(
-                for: url, size: CGSize(width: 2000, height: 2000)
-            )
             async let meta = Task { ImageMetadata.read(from: url) }.value
-            fullImage = await thumb
+
+            // Instant placeholder: best size already in memory (typically the grid thumb).
+            let cachedImg = await ThumbnailCache.shared.bestAvailableCached(for: url)
+            await nextRunLoop()
+            if let cachedImg {
+                fullImage = cachedImg
+                print("\(ts()) [detail] \(name) placeholder \(Int((CFAbsoluteTimeGetCurrent()-t0)*1000))ms")
+            }
+
+            // Medium-res and hi-res routed through decodeQueue (not prefetchQueue) so they
+            // are never blocked by background pre-fetch ops.
+            async let med = ThumbnailCache.shared.thumbnail(
+                for: url, size: CGSize(width: 800, height: 800))
+            async let hi  = ThumbnailCache.shared.thumbnail(
+                for: url, size: CGSize(width: 1600, height: 1600))
+
+            if let m = await med {
+                await nextRunLoop()
+                fullImage = m
+                print("\(ts()) [detail] \(name) 800px \(Int((CFAbsoluteTimeGetCurrent()-t0)*1000))ms")
+            }
+            await nextRunLoop()   // Fence before hi-res — let SwiftUI render medium first.
+            if let h = await hi  {
+                fullImage = h
+                print("\(ts()) [detail] \(name) 1600px \(Int((CFAbsoluteTimeGetCurrent()-t0)*1000))ms")
+            }
+
             imageMeta = await meta
         }
     }

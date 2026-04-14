@@ -22,12 +22,18 @@ actor ThumbnailCache {
         diskCacheURL = caches.appendingPathComponent("ImageRater/thumbnails")
         try? FileManager.default.createDirectory(at: diskCacheURL, withIntermediateDirectories: true)
         memCache.countLimit = 300
-        memCache.totalCostLimit = 150 * 1024 * 1024 // 150 MB
+        memCache.totalCostLimit = 300 * 1024 * 1024 // 300 MB — fits ~18 detail images + grid thumbs
     }
 
     /// Returns thumbnail for the given URL at requested size.
     /// Three-tier load: memory → disk (fast queue) → full decode (throttled queue).
-    func thumbnail(for url: URL, size: CGSize = CGSize(width: 200, height: 200)) async -> NSImage? {
+    /// `isPrefetch: true` routes the Tier-3 decode to prefetchQueue (isolated from decodeQueue)
+    /// so background pre-fetches never block user-visible detail-view loads.
+    func thumbnail(
+        for url: URL,
+        size: CGSize = CGSize(width: 200, height: 200),
+        isPrefetch: Bool = false
+    ) async -> NSImage? {
         let key = Self.cacheKey(for: url, size: size)
         let diskURL = diskCacheURL.appendingPathComponent(key + ".jpg")
         if !knownSizes.contains(size) { knownSizes.append(size) }
@@ -39,14 +45,14 @@ actor ThumbnailCache {
         // This is separate from decodeQueue so cached thumbnails don't compete with
         // heavy RAW decodes for queue slots.
         if let img = await Self.readFromDisk(diskURL) {
-            if size.width <= 400 {
-                memCache.setObject(img, forKey: key as NSString, cost: Int(size.width * size.height) * 4)
-            }
+            memCache.setObject(img, forKey: key as NSString, cost: Int(size.width * size.height) * 4)
             return img
         }
 
-        // Tier 3: full decode — throttled via decodeQueue to cap peak memory from
-        // concurrent LibRaw / ImageIO allocations.
+        // Tier 3: full decode — throttled via dedicated queues.
+        // isPrefetch uses prefetchQueue (isolated from decodeQueue) so background pre-fetches
+        // never occupy the slots that user-visible detail-view loads need.
+        let queue = isPrefetch ? Self.prefetchQueue : Self.decodeQueue
         let holder = OperationHolder()
         let decoded: NSImage? = await withTaskCancellationHandler {
             await withCheckedContinuation { (c: CheckedContinuation<NSImage?, Never>) in
@@ -68,17 +74,25 @@ actor ThumbnailCache {
                     c.resume(returning: img)
                     resumed = true
                 }
-                Self.decodeQueue.addOperation(op)
+                queue.addOperation(op)
             }
         } onCancel: {
             holder.operation?.cancel()
         }
 
         guard let decoded else { return nil }
-        if size.width <= 400 {
-            memCache.setObject(decoded, forKey: key as NSString, cost: Int(size.width * size.height) * 4)
-        }
+        memCache.setObject(decoded, forKey: key as NSString, cost: Int(size.width * size.height) * 4)
         return decoded
+    }
+
+    /// Returns the largest in-memory cached image for `url` with no disk I/O.
+    /// Use as an instant placeholder before the async decode completes.
+    func bestAvailableCached(for url: URL) -> NSImage? {
+        for size in knownSizes.sorted(by: { $0.width > $1.width }) {
+            let key = Self.cacheKey(for: url, size: size)
+            if let img = memCache.object(forKey: key as NSString) { return img }
+        }
+        return nil
     }
 
     /// Remove all cached variants of a URL (call after user changes rating to force refresh).
@@ -126,12 +140,22 @@ actor ThumbnailCache {
         return q
     }()
 
-    // RAW/ImageIO decodes: throttled — LibRaw holds 50–300 MB per active decode.
-    // 4 concurrent = up to ~1.2 GB peak; acceptable headroom on 16 GB machines.
+    // User-visible decodes (detail view): throttled to 2 concurrent.
+    // LibRaw extracts a full-res JPEG preview (~96 MB) before resize; 2 concurrent
+    // keeps peak IOSurface usage below the system limit on 16 GB machines.
     private static let decodeQueue: OperationQueue = {
         let q = OperationQueue()
-        q.maxConcurrentOperationCount = 4
+        q.maxConcurrentOperationCount = 2
         q.qualityOfService = .userInitiated
+        return q
+    }()
+
+    // Background pre-fetch decodes: fully isolated from decodeQueue so pre-fetch
+    // ops never occupy slots that the detail view needs.
+    private static let prefetchQueue: OperationQueue = {
+        let q = OperationQueue()
+        q.maxConcurrentOperationCount = 1
+        q.qualityOfService = .background
         return q
     }()
 

@@ -1,6 +1,16 @@
 import CoreData
 import SwiftUI
 
+private func ts() -> String {
+    var tv = timeval()
+    gettimeofday(&tv, nil)
+    let ms = tv.tv_usec / 1000
+    let s  = Int(tv.tv_sec) % 60
+    let m  = (Int(tv.tv_sec) / 60) % 60
+    let h  = (Int(tv.tv_sec) / 3600) % 24
+    return String(format: "%02d:%02d:%02d.%03d", h, m, s, ms)
+}
+
 private final class KeyboardHandler: ObservableObject {
     var onPrev: (() -> Void)?
     var onNext: (() -> Void)?
@@ -64,6 +74,7 @@ struct ContentView: View {
     @State private var showAIProgressSheet = false
     @State private var showCompareSheet = false
     @StateObject private var keyboard = KeyboardHandler()
+    @State private var ratingQueue = RatingQueue()
 
     // MARK: - Sidebar
 
@@ -99,7 +110,7 @@ struct ContentView: View {
             }
             Section("Filter by Rating") {
                 RatingFilterView(
-                    images: Array(sessionImages).filter { $0.isGroupPrimary },
+                    images: Array(sessionImages),
                     ratingFilter: $ratingFilter
                 )
                 .selectionDisabled()
@@ -122,6 +133,7 @@ struct ContentView: View {
                     anchorID = record.objectID
                     selectedIDs = [record.objectID]
                     detailRecord = record
+                    prefetchDetailImages(around: record.objectID)
                 },
                 onRemoveRatings: { removeRatings() },
                 onRunAI: { runAIOnSelected() }
@@ -194,13 +206,15 @@ struct ContentView: View {
                 Text(processingError ?? "")
             }
             .onAppear(perform: handleAppear)
-            .onDisappear { keyboard.stop() }
+            .onDisappear { keyboard.stop(); ratingQueue.flush() }
             .onChange(of: selectedSession) { _, session in
+                ratingQueue.flush()
                 if let session { writeRatingsInBackground(for: session) }
             }
             .onChange(of: anchorID) { _, id in
                 guard detailRecord != nil, let id else { return }
                 detailRecord = ctx.object(with: id) as? ImageRecord
+                prefetchDetailImages(around: id)
             }
             .modifier(FilterChangeModifier(
                 selectedSession: $selectedSession,
@@ -280,6 +294,7 @@ struct ContentView: View {
     }
 
     private func handleAppear() {
+        ratingQueue.configure(context: ctx, container: PersistenceController.shared.container)
         if let session = selectedSession { writeRatingsInBackground(for: session) }
         keyboard.onPrev = navigatePrev
         keyboard.onNext = navigateNext
@@ -304,11 +319,9 @@ struct ContentView: View {
     }
 
     private var filteredImages: [ImageRecord] {
-        var images = Array(sessionImages).filter { $0.isGroupPrimary }
-        if !ratingFilter.isEmpty {
-            images = images.filter { ratingFilter.contains(effectiveRating($0)) }
-        }
-        return images
+        // sessionImages predicate-filtered to isGroupPrimary == YES at DB level.
+        if ratingFilter.isEmpty { return Array(sessionImages) }
+        return sessionImages.filter { ratingFilter.contains(effectiveRating($0)) }
     }
 
     private var anchorRecord: ImageRecord? {
@@ -348,6 +361,33 @@ struct ContentView: View {
         selectedIDs = [prev.objectID]
     }
 
+    // MARK: - Detail pre-fetch
+
+    @State private var prefetchTask: Task<Void, Never>?
+
+    private func prefetchDetailImages(around id: NSManagedObjectID) {
+        let imgs = filteredImages
+        guard let idx = imgs.firstIndex(where: { $0.objectID == id }) else { return }
+        let urls: [URL] = [-1, 1, 2].compactMap { offset -> URL? in
+            let i = idx + offset
+            guard i >= 0, i < imgs.count, let path = imgs[i].filePath else { return nil }
+            return URL(filePath: path)
+        }
+        guard !urls.isEmpty else { return }
+        // Cancel previous pre-fetch — stops it from enqueueing more ops into prefetchQueue.
+        prefetchTask?.cancel()
+        // Routes through prefetchQueue (isolated from decodeQueue) so pre-fetch never
+        // blocks user-visible detail-view loads.
+        prefetchTask = Task.detached(priority: .background) {
+            for url in urls {
+                guard !Task.isCancelled else { return }
+                _ = await ThumbnailCache.shared.thumbnail(for: url, size: CGSize(width: 800, height: 800), isPrefetch: true)
+                guard !Task.isCancelled else { return }
+                _ = await ThumbnailCache.shared.thumbnail(for: url, size: CGSize(width: 1600, height: 1600), isPrefetch: true)
+            }
+        }
+    }
+
     // MARK: - Background XMP sweep
 
     /// Write XMP metadata for all rated images in the session.
@@ -379,7 +419,7 @@ struct ContentView: View {
     private func setRating(_ stars: Int) {
         guard !selectedIDs.isEmpty else { return }
 
-        // Pre-compute next before save so filter-disappear doesn't reset to nothing
+        // Pre-compute next before in-memory update so filter-disappear doesn't reset to nothing
         let nextID: NSManagedObjectID? = selectedIDs.count == 1 ? {
             let imgs = filteredImages
             guard let cur = anchorID,
@@ -388,51 +428,26 @@ struct ContentView: View {
             return imgs[idx + 1].objectID
         }() : nil
 
-        var tasks: [(url: URL, stars: Int)] = []
+        let t0 = CFAbsoluteTimeGetCurrent()
         for id in selectedIDs {
             guard let record = ctx.object(with: id) as? ImageRecord else { continue }
             record.userOverride = stars == 0 ? nil : NSNumber(value: Int16(stars))
-            let effectiveStars = stars > 0 ? stars : Int(record.ratingStars?.int16Value ?? 0)
-            if let path = record.filePath {
-                tasks.append((URL(filePath: path), effectiveStars))
-            }
-            if let gid = record.groupID,
-               let allImages = record.session?.images?.allObjects as? [ImageRecord] {
-                for c in allImages where c.groupID == gid && !c.isGroupPrimary {
-                    if let cp = c.filePath {
-                        tasks.append((URL(filePath: cp), effectiveStars))
-                    }
-                }
-            }
+            let effective = stars > 0 ? stars : Int(record.ratingStars?.int16Value ?? 0)
+            ratingQueue.enqueue(id: id, stars: effective)
         }
-        try? ctx.save()
 
         // Auto-advance single selection
         if let next = nextID {
             anchorID = next
             selectedIDs = [next]
         }
-
-        if autoWriteXMP {
-            Task.detached(priority: .utility) {
-                for t in tasks where t.stars > 0 {
-                    try? MetadataWriter.writeSidecar(stars: t.stars, for: t.url)
-                }
-            }
-        }
     }
 
     /// Rate a single record directly — used by compare mode, no auto-advance, no selection change.
     private func rateRecordDirect(_ record: ImageRecord, stars: Int) {
         record.userOverride = stars == 0 ? nil : NSNumber(value: Int16(stars))
-        try? ctx.save()
-        let effectiveStars = stars > 0 ? stars : Int(record.ratingStars?.int16Value ?? 0)
-        guard let path = record.filePath, effectiveStars > 0 else { return }
-        if autoWriteXMP {
-            Task.detached(priority: .utility) {
-                try? MetadataWriter.writeSidecar(stars: effectiveStars, for: URL(filePath: path))
-            }
-        }
+        let effective = stars > 0 ? stars : Int(record.ratingStars?.int16Value ?? 0)
+        ratingQueue.enqueue(id: record.objectID, stars: effective)
     }
 
     // MARK: - Actions
@@ -650,7 +665,7 @@ private struct FilterChangeModifier: ViewModifier {
                 selectedIDs = []
                 anchorID = nil
                 sessionImages.nsPredicate = session.map {
-                    NSPredicate(format: "session == %@", $0)
+                    NSPredicate(format: "session == %@ AND isGroupPrimary == YES", $0)
                 } ?? NSPredicate(value: false)
             }
             .onChange(of: ratingFilter) { _, _ in
