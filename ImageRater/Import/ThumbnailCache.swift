@@ -127,7 +127,7 @@ actor ThumbnailCache {
     }()
 
     // RAW/ImageIO decodes: throttled — LibRaw holds 50–300 MB per active decode.
-    // 3 concurrent = up to ~900 MB peak; acceptable headroom on 16 GB machines.
+    // 4 concurrent = up to ~1.2 GB peak; acceptable headroom on 16 GB machines.
     private static let decodeQueue: OperationQueue = {
         let q = OperationQueue()
         q.maxConcurrentOperationCount = 4
