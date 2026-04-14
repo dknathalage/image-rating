@@ -3,7 +3,7 @@ import Vision
 import Foundation
 import OSLog
 
-private let log = Logger(subsystem: "com.imagerating", category: "CullPipeline")
+private let log = Logger(subsystem: "com.focal.app", category: "CullPipeline")
 
 // CullResult and CullReason are defined in ImageRater/Models/CullResult.swift
 

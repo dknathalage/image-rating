@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct ImageRaterApp: App {
+struct FocalApp: App {
     let persistence = PersistenceController.shared
 
     var body: some Scene {

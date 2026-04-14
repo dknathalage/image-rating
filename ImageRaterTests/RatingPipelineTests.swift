@@ -1,5 +1,5 @@
 import XCTest
-@testable import ImageRater
+@testable import Focal
 
 final class RatingPipelineTests: XCTestCase {
 

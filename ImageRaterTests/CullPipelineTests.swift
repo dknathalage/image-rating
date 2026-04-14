@@ -1,7 +1,7 @@
 import XCTest
 import CoreImage
 import AppKit
-@testable import ImageRater
+@testable import Focal
 
 final class CullPipelineTests: XCTestCase {
 

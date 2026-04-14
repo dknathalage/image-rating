@@ -1,7 +1,7 @@
 // ImageRaterTests/ImageRecordMigrationTests.swift
 import XCTest
 import CoreData
-@testable import ImageRater
+@testable import Focal
 
 final class ImageRecordMigrationTests: XCTestCase {
 

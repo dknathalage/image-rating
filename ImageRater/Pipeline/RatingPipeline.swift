@@ -5,7 +5,7 @@ import CoreVideo
 import Foundation
 import OSLog
 
-private let log = Logger(subsystem: "com.imagerating", category: "RatingPipeline")
+private let log = Logger(subsystem: "com.focal.app", category: "RatingPipeline")
 
 enum RatingError: Error {
     case pixelBufferCreationFailed

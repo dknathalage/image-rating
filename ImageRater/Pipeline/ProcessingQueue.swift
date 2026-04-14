@@ -2,7 +2,7 @@ import CoreData
 import Foundation
 import OSLog
 
-private let log = Logger(subsystem: "com.imagerating", category: "ProcessingQueue")
+private let log = Logger(subsystem: "com.focal.app", category: "ProcessingQueue")
 
 enum ProcessState {
     static let pending = "pending"

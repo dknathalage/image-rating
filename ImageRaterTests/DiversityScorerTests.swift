@@ -1,7 +1,7 @@
 // ImageRaterTests/DiversityScorerTests.swift
 import XCTest
 import Accelerate
-@testable import ImageRater
+@testable import Focal
 
 final class DiversityScorerTests: XCTestCase {
 

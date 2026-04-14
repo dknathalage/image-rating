@@ -2,7 +2,7 @@ import CoreML
 import Foundation
 import OSLog
 
-private let log = Logger(subsystem: "com.imagerating", category: "ModelStore")
+private let log = Logger(subsystem: "com.focal.app", category: "ModelStore")
 
 actor ModelStore {
     static let shared = ModelStore()
