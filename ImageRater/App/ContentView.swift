@@ -193,7 +193,9 @@ struct ContentView: View {
             }
             .onAppear(perform: handleAppear)
             .onDisappear { keyboard.stop() }
-            .onChange(of: selectedSession) { _, _ in }
+            .onChange(of: selectedSession) { _, session in
+                if let session { writeRatingsInBackground(for: session) }
+            }
             .onChange(of: anchorID) { _, id in
                 guard detailRecord != nil, let id else { return }
                 detailRecord = ctx.object(with: id) as? ImageRecord
@@ -276,6 +278,7 @@ struct ContentView: View {
     }
 
     private func handleAppear() {
+        if let session = selectedSession { writeRatingsInBackground(for: session) }
         keyboard.onPrev = navigatePrev
         keyboard.onNext = navigateNext
         keyboard.onRate = setRating
@@ -345,6 +348,32 @@ struct ContentView: View {
         let prev = imgs[idx - 1]
         anchorID = prev.objectID
         selectedIDs = [prev.objectID]
+    }
+
+    // MARK: - Background XMP sweep
+
+    /// Write XMP metadata for all rated images in the session.
+    /// Runs at .background priority — safe to call on every session load.
+    private func writeRatingsInBackground(for session: Session) {
+        guard let images = session.images?.allObjects as? [ImageRecord] else { return }
+        let tasks: [(URL, Int)] = images.compactMap { record in
+            guard let path = record.filePath else { return nil }
+            let stars: Int
+            if let o = record.userOverride, o.int16Value > 0 {
+                stars = Int(o.int16Value)
+            } else if let s = record.ratingStars, s.int16Value > 0 {
+                stars = Int(s.int16Value)
+            } else {
+                return nil
+            }
+            return (URL(filePath: path), stars)
+        }
+        guard !tasks.isEmpty else { return }
+        Task.detached(priority: .background) {
+            for (url, stars) in tasks {
+                try? MetadataWriter.writeSidecar(stars: stars, for: url)
+            }
+        }
     }
 
     // MARK: - Rating
