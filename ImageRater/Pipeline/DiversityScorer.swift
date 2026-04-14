@@ -18,6 +18,7 @@ enum DiversityScorer {
 
     /// Dot product of two equal-length Float vectors (L2-normalised embeddings ≡ cosine similarity).
     static func cosineSimilarity(_ a: [Float], _ b: [Float]) -> Float {
+        precondition(a.count == b.count, "cosineSimilarity: vector length mismatch \(a.count) vs \(b.count)")
         var result: Float = 0
         vDSP_dotpr(a, 1, b, 1, &result, vDSP_Length(a.count))
         return result
@@ -64,6 +65,7 @@ enum DiversityScorer {
     ) -> [MMRItem] {
         let n = embeddings.count
         guard n > 0 else { return [] }
+        precondition(qualityScores.count == n, "mmrOrder: embeddings/qualityScores count mismatch \(n) vs \(qualityScores.count)")
 
         var selected: [Int] = []
         var remaining = IndexSet(0..<n)

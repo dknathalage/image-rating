@@ -17,6 +17,7 @@
 		3A35D7F6D67AAE6548C47B54 /* DetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7D4257B43DBE132201A39A0 /* DetailView.swift */; };
 		418EBE7BC16843054DBDE888 /* LibRawWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A1D62592AA878A621F6A969 /* LibRawWrapper.swift */; };
 		44991DBC93A2BE300C7DDA4F /* ImageRecordMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83A98DFF074B738E306D404C /* ImageRecordMigrationTests.swift */; };
+		BB1C2D3E4F5A6B7C8D9E0F1A /* ImageImporterGroupingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC2D3E4F5A6B7C8D9E0F1A2B /* ImageImporterGroupingTests.swift */; };
 		55996786456F392BB67EB921 /* CullResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6B5DF8555A058D7C6902BD4 /* CullResult.swift */; };
 		617796D07A10409D05E87519 /* RatingResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = 037E9085D3A94F4FD0ADFF72 /* RatingResult.swift */; };
 		64F5C1B3E1549F95C4437ECF /* ImageRater.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = E4EC119722BC5ED9AFDD7CB7 /* ImageRater.xcdatamodeld */; };
@@ -28,14 +29,17 @@
 		7801637BA7B4FD83377B0FF9 /* RatingPipelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D75A35F43365E93486106E65 /* RatingPipelineTests.swift */; };
 		7BC30F3D50CDBB543B67AD28 /* DiversityScorerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B61E67A16515E7E5AF447BF1 /* DiversityScorerTests.swift */; };
 		7C131D2EB312D83B95AF5CEF /* MetadataWriterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D037073964B87A0F24A93C65 /* MetadataWriterTests.swift */; };
+		84FE8B175260F643074F5332 /* topiq-swin.mlmodelc in Resources */ = {isa = PBXBuildFile; fileRef = 97E51ACE473C6D21ACB46099 /* topiq-swin.mlmodelc */; };
 		86D313E2F76C9ECE3D72D259 /* ImageRaterApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = F46B8A2612176D53E2D10AC0 /* ImageRaterApp.swift */; };
 		8D606E26FCAD4F580900C3F1 /* LibRawBridge.mm in Sources */ = {isa = PBXBuildFile; fileRef = E4BD04A90265A02C56519149 /* LibRawBridge.mm */; };
 		91CBFA68909C40049E3E5207 /* ModelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4F6C94F58002553D1D1337D /* ModelStore.swift */; };
 		93F160F69BE32544545598EC /* ProcessingQueueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46E799F849697017D7A2A17C /* ProcessingQueueTests.swift */; };
+		95B8CEA69B4C17F274E87C50 /* topiq-nr.mlmodelc in Resources */ = {isa = PBXBuildFile; fileRef = 963BB430CD05DF7FBB136C4F /* topiq-nr.mlmodelc */; };
 		A0D0B144EA082C4006A61E10 /* LibRawWrapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11B85272F1A7E64C99FFACED /* LibRawWrapperTests.swift */; };
 		A97CBA91B4AB5AA69733AE76 /* ImageMetadata.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC98438F94DE235B9D0CB8A7 /* ImageMetadata.swift */; };
 		B9E08E487FEE04501BD9DAEF /* ThumbnailCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51CC8F269008CDA6AB3B88C3 /* ThumbnailCache.swift */; };
 		CA5785B4173C08BDF61F4985 /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E8B9EAC1E6A2D9973B2B125 /* PersistenceController.swift */; };
+		D40D5D61954F2B4A1F2B67AA /* clip-vision.mlmodelc in Resources */ = {isa = PBXBuildFile; fileRef = 3FDC94963CF72A3C7AD9A4BE /* clip-vision.mlmodelc */; };
 		D6A1E7E2D906C631C0376BDA /* ImageImporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2525BB5A1D41167E395966C /* ImageImporter.swift */; };
 		D6FF6E3106207E9CE39492AF /* ModelStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F6CFB8C967E9F93A984E8A /* ModelStoreTests.swift */; };
 		E0B6EF5741A3AFCB382F26A8 /* CullPipelineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F52DFF241767600BD466630B /* CullPipelineTests.swift */; };
@@ -65,20 +69,25 @@
 		2448FED23B6F6281DA84D6E3 /* ImageRater-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "ImageRater-Bridging-Header.h"; sourceTree = "<group>"; };
 		28FD798FAFEFD3ADE86B48B0 /* IntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntegrationTests.swift; sourceTree = "<group>"; };
 		3BA85CE95545757BDA458D16 /* CullPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CullPipeline.swift; sourceTree = "<group>"; };
+		3FDC94963CF72A3C7AD9A4BE /* clip-vision.mlmodelc */ = {isa = PBXFileReference; path = "clip-vision.mlmodelc"; sourceTree = "<group>"; };
 		46E799F849697017D7A2A17C /* ProcessingQueueTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProcessingQueueTests.swift; sourceTree = "<group>"; };
 		4B3FC2A1376A06433A3956D4 /* ThumbnailCell.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailCell.swift; sourceTree = "<group>"; };
 		4DBCE4EEC67C93A6B171754A /* ZoomableImageView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoomableImageView.swift; sourceTree = "<group>"; };
 		51CC8F269008CDA6AB3B88C3 /* ThumbnailCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailCache.swift; sourceTree = "<group>"; };
 		59427D413B63AF5B07BACF9F /* sharp.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = sharp.jpg; sourceTree = "<group>"; };
 		599B03E84B74529369D7ECB9 /* ImageRater 2.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "ImageRater 2.xcdatamodel"; sourceTree = "<group>"; };
+		AA1B2C3D4E5F6A7B8C9D0E1F /* ImageRater 3.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "ImageRater 3.xcdatamodel"; sourceTree = "<group>"; };
 		6B4C6A2E1C2B71C70F55AE87 /* ImageRaterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageRaterTests.swift; sourceTree = "<group>"; };
 		74FAE79C691882738757D09E /* RatingPipeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RatingPipeline.swift; sourceTree = "<group>"; };
 		7E8B9EAC1E6A2D9973B2B125 /* PersistenceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceController.swift; sourceTree = "<group>"; };
 		83A98DFF074B738E306D404C /* ImageRecordMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageRecordMigrationTests.swift; sourceTree = "<group>"; };
+		CC2D3E4F5A6B7C8D9E0F1A2B /* ImageImporterGroupingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageImporterGroupingTests.swift; sourceTree = "<group>"; };
 		8A1D62592AA878A621F6A969 /* LibRawWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibRawWrapper.swift; sourceTree = "<group>"; };
 		8DF38EC57B56EE237A3013DF /* ModelDownloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDownloader.swift; sourceTree = "<group>"; };
 		927C8C97DBC631094FF48BFB /* ImageRater.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = ImageRater.xcdatamodel; sourceTree = "<group>"; };
 		92F6CFB8C967E9F93A984E8A /* ModelStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelStoreTests.swift; sourceTree = "<group>"; };
+		963BB430CD05DF7FBB136C4F /* topiq-nr.mlmodelc */ = {isa = PBXFileReference; path = "topiq-nr.mlmodelc"; sourceTree = "<group>"; };
+		97E51ACE473C6D21ACB46099 /* topiq-swin.mlmodelc */ = {isa = PBXFileReference; path = "topiq-swin.mlmodelc"; sourceTree = "<group>"; };
 		A39AA7C4FC0E962E4F361348 /* DiversityScorer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiversityScorer.swift; sourceTree = "<group>"; };
 		A8A89F521A3965A61370398E /* MetadataWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetadataWriter.swift; sourceTree = "<group>"; };
 		ABE5316398AD4711064C7A1B /* ModelStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelStoreView.swift; sourceTree = "<group>"; };
@@ -187,6 +196,16 @@
 			path = Components;
 			sourceTree = "<group>";
 		};
+		8AE2724C1F5BEFD5DCD860C0 /* MLModels */ = {
+			isa = PBXGroup;
+			children = (
+				3FDC94963CF72A3C7AD9A4BE /* clip-vision.mlmodelc */,
+				963BB430CD05DF7FBB136C4F /* topiq-nr.mlmodelc */,
+				97E51ACE473C6D21ACB46099 /* topiq-swin.mlmodelc */,
+			);
+			path = MLModels;
+			sourceTree = "<group>";
+		};
 		8DC33B1982BAD5D719CA4AAE /* ImageRaterTests */ = {
 			isa = PBXGroup;
 			children = (
@@ -194,6 +213,7 @@
 				B61E67A16515E7E5AF447BF1 /* DiversityScorerTests.swift */,
 				6B4C6A2E1C2B71C70F55AE87 /* ImageRaterTests.swift */,
 				83A98DFF074B738E306D404C /* ImageRecordMigrationTests.swift */,
+				CC2D3E4F5A6B7C8D9E0F1A2B /* ImageImporterGroupingTests.swift */,
 				28FD798FAFEFD3ADE86B48B0 /* IntegrationTests.swift */,
 				11B85272F1A7E64C99FFACED /* LibRawWrapperTests.swift */,
 				D037073964B87A0F24A93C65 /* MetadataWriterTests.swift */,
@@ -215,6 +235,7 @@
 				A566978C664A93A2BC663FEC /* Export */,
 				B058984081BDC65A820F0630 /* Import */,
 				184BC2044D8AAD52B2913126 /* LibRaw */,
+				8AE2724C1F5BEFD5DCD860C0 /* MLModels */,
 				6167E9C8B540F1FB87BA401A /* Models */,
 				024715370DFEFEB2474CB220 /* ModelStore */,
 				51244A4F04AC535C2E78FBE2 /* Pipeline */,
@@ -293,6 +314,7 @@
 			buildConfigurationList = 17A4BF002B0F052636CED341 /* Build configuration list for PBXNativeTarget "ImageRater" */;
 			buildPhases = (
 				57D26E87E9D4A4619BCC4462 /* Sources */,
+				ECB811ABA15455B8ADBD98ED /* Resources */,
 			);
 			buildRules = (
 			);
@@ -348,6 +370,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		ECB811ABA15455B8ADBD98ED /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D40D5D61954F2B4A1F2B67AA /* clip-vision.mlmodelc in Resources */,
+				95B8CEA69B4C17F274E87C50 /* topiq-nr.mlmodelc in Resources */,
+				84FE8B175260F643074F5332 /* topiq-swin.mlmodelc in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -359,6 +391,7 @@
 				7BC30F3D50CDBB543B67AD28 /* DiversityScorerTests.swift in Sources */,
 				160FE7872D2B8803590A215D /* ImageRaterTests.swift in Sources */,
 				44991DBC93A2BE300C7DDA4F /* ImageRecordMigrationTests.swift in Sources */,
+				BB1C2D3E4F5A6B7C8D9E0F1A /* ImageImporterGroupingTests.swift in Sources */,
 				E500AAB0F68715925DC455BC /* IntegrationTests.swift in Sources */,
 				A0D0B144EA082C4006A61E10 /* LibRawWrapperTests.swift in Sources */,
 				7C131D2EB312D83B95AF5CEF /* MetadataWriterTests.swift in Sources */,
@@ -645,9 +678,10 @@
 			isa = XCVersionGroup;
 			children = (
 				599B03E84B74529369D7ECB9 /* ImageRater 2.xcdatamodel */,
+				AA1B2C3D4E5F6A7B8C9D0E1F /* ImageRater 3.xcdatamodel */,
 				927C8C97DBC631094FF48BFB /* ImageRater.xcdatamodel */,
 			);
-			currentVersion = 599B03E84B74529369D7ECB9 /* ImageRater 2.xcdatamodel */;
+			currentVersion = AA1B2C3D4E5F6A7B8C9D0E1F /* ImageRater 3.xcdatamodel */;
 			path = ImageRater.xcdatamodeld;
 			sourceTree = "<group>";
 			versionGroupType = wrapper.xcdatamodel;

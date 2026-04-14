@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="22222" systemVersion="23A344" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="3">
+    <entity name="Session" representedClassName="Session" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="createdAt" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="folderPath" optional="NO" attributeType="String"/>
+        <relationship name="images" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ImageRecord" inverseName="session" inverseEntity="ImageRecord"/>
+    </entity>
+    <entity name="ImageRecord" representedClassName="ImageRecord" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="filePath" optional="NO" attributeType="String"/>
+        <attribute name="thumbHash" optional="YES" attributeType="String"/>
+        <attribute name="processState" optional="NO" attributeType="String" defaultValueString="pending"/>
+        <attribute name="decodeError" optional="NO" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="cullRejected" optional="NO" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="cullReason" optional="YES" attributeType="String"/>
+        <attribute name="ratingStars" optional="YES" attributeType="Integer 16" usesScalarValueType="NO"/>
+        <attribute name="clipScore" optional="YES" attributeType="Float" usesScalarValueType="NO"/>
+        <attribute name="aestheticScore" optional="YES" attributeType="Float" usesScalarValueType="NO"/>
+        <attribute name="userOverride" optional="YES" attributeType="Integer 16" usesScalarValueType="NO"/>
+        <attribute name="topiqTechnicalScore" attributeType="Float" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="topiqAestheticScore" attributeType="Float" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="clipIQAScore" attributeType="Float" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="combinedQualityScore" attributeType="Float" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="finalScore" attributeType="Float" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="diversityFactor" attributeType="Float" defaultValueString="1.0" usesScalarValueType="YES"/>
+        <attribute name="clipEmbedding" optional="YES" attributeType="Binary" allowsExternalBinaryDataStorage="YES"/>
+        <attribute name="clusterID" attributeType="Integer 32" defaultValueString="-1" usesScalarValueType="YES"/>
+        <attribute name="clusterRank" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="blurScore" attributeType="Float" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="exposureScore" attributeType="Float" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="groupID" optional="YES" attributeType="String"/>
+        <attribute name="isGroupPrimary" optional="NO" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <attribute name="scoringFilePath" optional="YES" attributeType="String"/>
+        <relationship name="session" optional="NO" maxCount="1" deletionRule="Nullify" destinationEntity="Session" inverseName="images" inverseEntity="Session"/>
+    </entity>
+    <entity name="ModelConfig" representedClassName="ModelConfig" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="modelName" optional="NO" attributeType="String"/>
+        <attribute name="clipWeight" optional="NO" attributeType="Float" defaultValueString="0.5" usesScalarValueType="YES"/>
+        <attribute name="aestheticWeight" optional="NO" attributeType="Float" defaultValueString="0.5" usesScalarValueType="YES"/>
+        <attribute name="blurThreshold" optional="NO" attributeType="Float" defaultValueString="50.0" usesScalarValueType="YES"/>
+        <attribute name="earThreshold" optional="NO" attributeType="Float" defaultValueString="0.2" usesScalarValueType="YES"/>
+        <attribute name="exposureLeniency" optional="NO" attributeType="Float" defaultValueString="0.9" usesScalarValueType="YES"/>
+    </entity>
+</model>

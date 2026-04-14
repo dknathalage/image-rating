@@ -116,26 +116,13 @@ enum CullPipeline {
         return .keep
     }
 
-    /// Full cull — blur then eyes-closed then exposure. Returns CullScores with numeric quality scores.
+    /// Compute quality scores only — never auto-rejects. User handles accept/reject manually.
     static func cull(image: CGImage, blurThreshold: Float, earThreshold: Float,
                      exposureLeniency: Float) async -> CullScores {
 
-        let (blurResult, blurVariance) = checkBlur(image: image, threshold: blurThreshold)
-
-        // Always compute exposure score for UI display, even if already rejected
-        let (exposureResult, exposureScore) = checkExposure(image: image,
-                                                             exposureLeniency: exposureLeniency)
-
-        if blurResult.rejected {
-            return CullScores(result: blurResult, blurScore: blurVariance, exposureScore: exposureScore)
-        }
-
-        let eyeResult = await checkEyesClosed(cgImage: image, earThreshold: earThreshold)
-        if eyeResult.rejected {
-            return CullScores(result: eyeResult, blurScore: blurVariance, exposureScore: exposureScore)
-        }
-
-        return CullScores(result: exposureResult, blurScore: blurVariance, exposureScore: exposureScore)
+        let (_, blurVariance) = checkBlur(image: image, threshold: blurThreshold)
+        let (_, exposureScore) = checkExposure(image: image, exposureLeniency: exposureLeniency)
+        return CullScores(result: .keep, blurScore: blurVariance, exposureScore: exposureScore)
     }
 
     // MARK: - Private helpers

@@ -40,30 +40,5 @@ final class ProcessingQueueTests: XCTestCase {
         }
     }
 
-    func testFetchOrCreateConfigCreatesDefaultConfig() async throws {
-        let ctx = PersistenceController(inMemory: true).container.viewContext
-        let session = Session(context: ctx)
-        session.id = UUID()
-        session.createdAt = Date()
-        session.folderPath = "/tmp"
-        // Add one record so process() reaches fetchOrCreateConfig
-        let r = ImageRecord(context: ctx)
-        r.id = UUID()
-        r.filePath = "/tmp/nonexistent.jpg"
-        r.processState = ProcessState.pending
-        r.session = session
-        try ctx.save()
 
-        let queue = ProcessingQueue(context: ctx)
-        try? await queue.process(sessionID: session.objectID)
-
-        let req = ModelConfig.fetchRequest()
-        let configs = try ctx.fetch(req)
-        XCTAssertFalse(configs.isEmpty, "fetchOrCreateConfig should always create a config")
-        if let config = configs.first {
-            XCTAssertEqual(config.blurThreshold, 500.0)
-            XCTAssertEqual(config.earThreshold, 0.15)
-            XCTAssertEqual(config.exposureLeniency, 0.95)
-        }
-    }
 }

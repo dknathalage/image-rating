@@ -22,8 +22,13 @@ struct GridView: View {
     let sessionHasImages: Bool
     @Binding var selectedIDs: Set<NSManagedObjectID>
     @Binding var anchorID: NSManagedObjectID?
+    let cellSize: CGFloat
+    let onDoubleClick: (ImageRecord) -> Void
+    let onRate: (ImageRecord, Int) -> Void
+    let onRemoveRatings: () -> Void
+    let onRunAI: () -> Void
 
-    let columns = [GridItem(.adaptive(minimum: 160), spacing: 8)]
+    var columns: [GridItem] { [GridItem(.adaptive(minimum: cellSize), spacing: 8)] }
 
     @State private var cellFrames: [NSManagedObjectID: CGRect] = [:]
     @State private var dragRect: CGRect?
@@ -44,9 +49,14 @@ struct GridView: View {
                         ForEach(images, id: \.objectID) { record in
                             ThumbnailCell(
                                 record: record,
-                                isSelected: selectedIDs.contains(record.objectID)
+                                isSelected: selectedIDs.contains(record.objectID),
+                                cellSize: cellSize
                             ) { mods in
                                 handleTap(record: record, modifiers: mods)
+                            } onDoubleClick: {
+                                onDoubleClick(record)
+                            } onRate: { stars in
+                                onRate(record, stars)
                             }
                             .background(
                                 GeometryReader { geo in
@@ -80,12 +90,28 @@ struct GridView: View {
                         .onEnded { _ in dragRect = nil }
                 )
             }
+            .contextMenu {
+                if !selectedIDs.isEmpty {
+                    Button("Remove Ratings", systemImage: "star.slash") {
+                        onRemoveRatings()
+                    }
+                    Divider()
+                    Button("Run AI Rating", systemImage: "wand.and.stars") {
+                        onRunAI()
+                    }
+                }
+            }
             .onPreferenceChange(CellFrameKey.self) { frames in
                 cellFrames = Dictionary(
                     frames.map { ($0.id, $0.frame) },
                     uniquingKeysWith: { _, new in new }
                 )
             }
+
+            Button("") { selectedIDs = Set(images.map(\.objectID)) }
+                .keyboardShortcut("a", modifiers: .command)
+                .frame(width: 0, height: 0)
+                .opacity(0)
         }
     }
 

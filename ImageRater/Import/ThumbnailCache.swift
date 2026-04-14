@@ -16,7 +16,7 @@ actor ThumbnailCache {
         diskCacheURL = caches.appendingPathComponent("ImageRater/thumbnails")
         try? FileManager.default.createDirectory(at: diskCacheURL, withIntermediateDirectories: true)
         memCache.countLimit = 500
-        memCache.totalCostLimit = 200 * 1024 * 1024 // 200 MB
+        memCache.totalCostLimit = 400 * 1024 * 1024 // 400 MB
     }
 
     /// Returns thumbnail for the given URL at requested size.
@@ -59,6 +59,28 @@ actor ThumbnailCache {
         return nsImage
     }
 
+    /// Enqueue background thumbnail generation for a list of URLs without blocking.
+    /// Uses .background QoS so on-screen cell loads always take priority.
+    func prefetch(urls: [URL], size: CGSize) {
+        for url in urls {
+            let key = Self.cacheKey(for: url, size: size)
+            // Skip if already in memory cache
+            if memCache.object(forKey: key as NSString) != nil { continue }
+            let diskURL = diskCacheURL.appendingPathComponent(key + ".jpg")
+            Self.decodeQueue.addOperation {
+                // Skip if disk cache already exists
+                guard !FileManager.default.fileExists(atPath: diskURL.path) else { return }
+                guard let cgImage = ThumbnailCache.decodeThumbnail(url: url, size: size) else { return }
+                let rep = NSBitmapImageRep(cgImage: cgImage)
+                if let jpegData = rep.representation(using: .jpeg, properties: [.compressionFactor: 0.8]) {
+                    try? jpegData.write(to: diskURL)
+                }
+            }
+            // Lower priority for prefetch ops
+            Self.decodeQueue.operations.last?.queuePriority = .low
+        }
+    }
+
     /// Remove all cached variants of a URL (call after user changes rating to force refresh).
     func invalidate(for url: URL) {
         for size in knownSizes {
@@ -72,7 +94,7 @@ actor ThumbnailCache {
     // Throttle concurrent RAW/ImageIO decodes to avoid dyld lock contention on first-time plugin init.
     private static let decodeQueue: OperationQueue = {
         let q = OperationQueue()
-        q.maxConcurrentOperationCount = 4
+        q.maxConcurrentOperationCount = 6
         q.qualityOfService = .userInitiated
         return q
     }()

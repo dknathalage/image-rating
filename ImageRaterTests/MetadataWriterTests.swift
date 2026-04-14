@@ -34,9 +34,10 @@ final class MetadataWriterTests: XCTestCase {
         }
     }
 
-    func testXMPFileCreatedAtExpectedSidecarPath() throws {
+    func testXMPSidecarCreatedForRawFile() throws {
+        // RAW files always get a sidecar (.xmp next to the file)
         let tmpDir = FileManager.default.temporaryDirectory
-        let imageURL = tmpDir.appendingPathComponent("test_img_\(UUID().uuidString).jpg")
+        let imageURL = tmpDir.appendingPathComponent("test_img_\(UUID().uuidString).cr2")
         let expectedXMP = imageURL.deletingPathExtension().appendingPathExtension("xmp")
         defer { try? FileManager.default.removeItem(at: expectedXMP) }
 

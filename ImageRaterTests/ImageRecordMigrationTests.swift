@@ -42,6 +42,46 @@ final class ImageRecordMigrationTests: XCTestCase {
         XCTAssertEqual(r.exposureScore, 0.3,   accuracy: 0.001)
     }
 
+    func testV3GroupingFieldsReadWrite() throws {
+        let ctx = makeInMemoryContext()
+
+        let session = Session(context: ctx)
+        session.id = UUID(); session.createdAt = Date(); session.folderPath = "/tmp"
+
+        let jpeg = ImageRecord(context: ctx)
+        jpeg.id = UUID(); jpeg.filePath = "/tmp/a.jpg"; jpeg.processState = "pending"; jpeg.session = session
+        jpeg.groupID = "test-group-1"
+        jpeg.isGroupPrimary = true
+        jpeg.scoringFilePath = "/tmp/a.cr2"
+
+        let raw = ImageRecord(context: ctx)
+        raw.id = UUID(); raw.filePath = "/tmp/a.cr2"; raw.processState = "pending"; raw.session = session
+        raw.groupID = "test-group-1"
+        raw.isGroupPrimary = false
+
+        let solo = ImageRecord(context: ctx)
+        solo.id = UUID(); solo.filePath = "/tmp/b.jpg"; solo.processState = "pending"; solo.session = session
+        // groupID nil, isGroupPrimary defaults to true
+
+        try ctx.save()
+
+        ctx.refresh(jpeg, mergeChanges: false)
+        ctx.refresh(raw, mergeChanges: false)
+        ctx.refresh(solo, mergeChanges: false)
+
+        XCTAssertEqual(jpeg.groupID, "test-group-1")
+        XCTAssertTrue(jpeg.isGroupPrimary)
+        XCTAssertEqual(jpeg.scoringFilePath, "/tmp/a.cr2")
+
+        XCTAssertEqual(raw.groupID, "test-group-1")
+        XCTAssertFalse(raw.isGroupPrimary)
+        XCTAssertNil(raw.scoringFilePath)
+
+        XCTAssertNil(solo.groupID)
+        XCTAssertTrue(solo.isGroupPrimary)
+        XCTAssertNil(solo.scoringFilePath)
+    }
+
     private func makeInMemoryContext() -> NSManagedObjectContext {
         let c = NSPersistentContainer(name: "ImageRater")
         let d = NSPersistentStoreDescription()

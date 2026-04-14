@@ -78,18 +78,34 @@ enum RatingPipeline {
         return weights.technical * technical + weights.aesthetic * aesthetic + weights.semantic * semantic
     }
 
-    /// CLIP-IQA+: softmax([dot(img, good), dot(img, bad)])[0] = P("Good photo")
-    static func clipIQAScore(embedding: [Float]) -> Float {
-        let good = CLIPTextEmbeddings.goodPhoto
-        let bad  = CLIPTextEmbeddings.badPhoto
-        precondition(embedding.count == good.count,
-                     "clipIQAScore: embedding size \(embedding.count) does not match text embedding size \(good.count)")
-        let dotGood: Float = zip(embedding, good).reduce(0) { $0 + $1.0 * $1.1 }
-        let dotBad:  Float = zip(embedding, bad).reduce(0)  { $0 + $1.0 * $1.1 }
-        let maxVal  = max(dotGood, dotBad)
-        let eG = expf(dotGood - maxVal)
-        let eB = expf(dotBad  - maxVal)
-        return eG / (eG + eB)
+    /// CLIP-IQA+: average softmax P("positive prompt") across all antonym pairs.
+    /// logitScale matches CLIP ViT-B/32's learned temperature (exp(logit_scale) ≈ 100).
+    /// Without this, raw cosine similarities (~0.2–0.3) are too small for softmax to
+    /// discriminate; all scores collapse to ~0.5.
+    static func clipIQAScore(embedding: [Float], logitScale: Float = 100.0) -> Float {
+        let posPrompts = CLIPTextEmbeddings.positivePrompts
+        let negPrompts = CLIPTextEmbeddings.negativePrompts
+        precondition(!posPrompts.isEmpty && posPrompts.count == negPrompts.count,
+                     "clipIQAScore: mismatched or empty antonym pairs")
+        precondition(embedding.count == posPrompts[0].count,
+                     "clipIQAScore: embedding size \(embedding.count) != text embedding size \(posPrompts[0].count)")
+        // L2-normalise defensively: coremltools may drop F.normalize from the traced VisionWrapper.
+        let norm = sqrtf(embedding.reduce(0) { $0 + $1 * $1 })
+        guard norm > 1e-6 else {
+            log.warning("CLIP embedding near-zero (norm=\(norm)) — vision model may be broken; returning 0.5")
+            return 0.5
+        }
+        let emb = norm < 0.999 || norm > 1.001 ? embedding.map { $0 / norm } : embedding
+        var total: Float = 0
+        for (pos, neg) in zip(posPrompts, negPrompts) {
+            let dotPos: Float = logitScale * zip(emb, pos).reduce(0) { $0 + $1.0 * $1.1 }
+            let dotNeg: Float = logitScale * zip(emb, neg).reduce(0) { $0 + $1.0 * $1.1 }
+            let maxVal  = max(dotPos, dotNeg)
+            let eP = expf(dotPos - maxVal)
+            let eN = expf(dotNeg - maxVal)
+            total += eP / (eP + eN)
+        }
+        return total / Float(posPrompts.count)
     }
 
     // MARK: - Pixel buffer

@@ -87,55 +87,88 @@ struct ImageMetadata {
             meta.fileSize = (sz as? Int64) ?? Int64((sz as? Int) ?? 0)
         }
 
-        guard let source = CGImageSourceCreateWithURL(url as CFURL, [
+        // For RAW files: use LibRaw which parses makernotes directly.
+        // LibRaw is authoritative for camera identity, lens, and shooting parameters.
+        let ext = url.pathExtension.lowercased()
+        if LibRawWrapper.supportedExtensions.contains(ext),
+           let raw = LibRawBridge.metadata(atPath: url.path) {
+            meta.cameraMake    = raw.normalizedMake ?? raw.make
+            meta.cameraModel   = raw.normalizedModel ?? raw.model
+            meta.lens          = raw.lens
+            if raw.iso > 0          { meta.iso          = Int(raw.iso) }
+            if raw.shutterSpeed > 0 { meta.shutterSpeed = Double(raw.shutterSpeed) }
+            if raw.aperture > 0     { meta.aperture     = Double(raw.aperture) }
+            if raw.focalLength > 0  { meta.focalLength  = Double(raw.focalLength) }
+            if raw.focalLength35mm > 0 { meta.focalLength35mm = Double(raw.focalLength35mm) }
+            if raw.pixelWidth > 0   { meta.pixelWidth   = Int(raw.pixelWidth) }
+            if raw.pixelHeight > 0  { meta.pixelHeight  = Int(raw.pixelHeight) }
+            if raw.meteringMode > 0 { meta.meteringMode = meteringModeString(Int(raw.meteringMode)) }
+            if raw.exposureProgram > 0 { meta.exposureProgram = exposureProgramString(Int(raw.exposureProgram)) }
+            meta.dateTaken = raw.dateTaken
+        }
+
+        // CGImageSource fills any gaps (exposure bias, flash, white balance, color space,
+        // and dimensions/date for non-RAW files).
+        if let source = CGImageSourceCreateWithURL(url as CFURL, [
             kCGImageSourceShouldCache: false
         ] as CFDictionary),
-              let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any] else {
-            return meta
-        }
+           let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [String: Any] {
 
-        meta.pixelWidth = props[kCGImagePropertyPixelWidth as String] as? Int
-        meta.pixelHeight = props[kCGImagePropertyPixelHeight as String] as? Int
+            if meta.pixelWidth == nil  { meta.pixelWidth  = props[kCGImagePropertyPixelWidth  as String] as? Int }
+            if meta.pixelHeight == nil { meta.pixelHeight = props[kCGImagePropertyPixelHeight as String] as? Int }
 
-        if let tiff = props[kCGImagePropertyTIFFDictionary as String] as? [String: Any] {
-            meta.cameraMake = (tiff[kCGImagePropertyTIFFMake as String] as? String)?.trimmingCharacters(in: .whitespaces)
-            meta.cameraModel = (tiff[kCGImagePropertyTIFFModel as String] as? String)?.trimmingCharacters(in: .whitespaces)
-        }
-
-        if let exif = props[kCGImagePropertyExifDictionary as String] as? [String: Any] {
-            meta.aperture = exif[kCGImagePropertyExifFNumber as String] as? Double
-            meta.shutterSpeed = exif[kCGImagePropertyExifExposureTime as String] as? Double
-            meta.focalLength = exif[kCGImagePropertyExifFocalLength as String] as? Double
-            meta.focalLength35mm = exif[kCGImagePropertyExifFocalLenIn35mmFilm as String] as? Double
-            meta.lens = (exif[kCGImagePropertyExifLensModel as String] as? String)?.trimmingCharacters(in: .whitespaces)
-            meta.exposureBias = exif[kCGImagePropertyExifExposureBiasValue as String] as? Double
-
-            if let isos = exif[kCGImagePropertyExifISOSpeedRatings as String] as? [Int] {
-                meta.iso = isos.first
-            } else {
-                meta.iso = exif[kCGImagePropertyExifISOSpeedRatings as String] as? Int
+            if let tiff = props[kCGImagePropertyTIFFDictionary as String] as? [String: Any] {
+                if meta.cameraMake == nil {
+                    meta.cameraMake = (tiff[kCGImagePropertyTIFFMake as String] as? String)?.trimmingCharacters(in: .whitespaces)
+                }
+                if meta.cameraModel == nil {
+                    meta.cameraModel = (tiff[kCGImagePropertyTIFFModel as String] as? String)?.trimmingCharacters(in: .whitespaces)
+                }
             }
 
-            if let dateStr = exif[kCGImagePropertyExifDateTimeOriginal as String] as? String {
-                let fmt = DateFormatter()
-                fmt.dateFormat = "yyyy:MM:dd HH:mm:ss"
-                meta.dateTaken = fmt.date(from: dateStr)
-            }
+            if let exif = props[kCGImagePropertyExifDictionary as String] as? [String: Any] {
+                if meta.aperture == nil     { meta.aperture     = exif[kCGImagePropertyExifFNumber as String] as? Double }
+                if meta.shutterSpeed == nil { meta.shutterSpeed = exif[kCGImagePropertyExifExposureTime as String] as? Double }
+                if meta.focalLength == nil  { meta.focalLength  = exif[kCGImagePropertyExifFocalLength as String] as? Double }
+                if meta.focalLength35mm == nil { meta.focalLength35mm = exif[kCGImagePropertyExifFocalLenIn35mmFilm as String] as? Double }
+                if meta.lens == nil {
+                    meta.lens = (exif[kCGImagePropertyExifLensModel as String] as? String)?.trimmingCharacters(in: .whitespaces)
+                }
+                // Exposure bias and flash only reliably available via EXIF
+                meta.exposureBias = exif[kCGImagePropertyExifExposureBiasValue as String] as? Double
 
-            if let wb = exif[kCGImagePropertyExifWhiteBalance as String] as? Int {
-                meta.whiteBalance = wb == 0 ? "Auto" : "Manual"
-            }
+                if meta.iso == nil {
+                    if let isos = exif[kCGImagePropertyExifISOSpeedRatings as String] as? [Int] {
+                        meta.iso = isos.first
+                    } else {
+                        meta.iso = exif[kCGImagePropertyExifISOSpeedRatings as String] as? Int
+                    }
+                }
 
-            if let flash = exif[kCGImagePropertyExifFlash as String] as? Int {
-                meta.flash = (flash & 0x1) != 0 ? "Fired" : "No flash"
-            }
+                if meta.dateTaken == nil,
+                   let dateStr = exif[kCGImagePropertyExifDateTimeOriginal as String] as? String {
+                    let fmt = DateFormatter()
+                    fmt.dateFormat = "yyyy:MM:dd HH:mm:ss"
+                    meta.dateTaken = fmt.date(from: dateStr)
+                }
 
-            if let mm = exif[kCGImagePropertyExifMeteringMode as String] as? Int {
-                meta.meteringMode = meteringModeString(mm)
-            }
+                if let wb = exif[kCGImagePropertyExifWhiteBalance as String] as? Int {
+                    meta.whiteBalance = wb == 0 ? "Auto" : "Manual"
+                }
 
-            if let ep = exif[kCGImagePropertyExifExposureProgram as String] as? Int {
-                meta.exposureProgram = exposureProgramString(ep)
+                if let flash = exif[kCGImagePropertyExifFlash as String] as? Int {
+                    meta.flash = (flash & 0x1) != 0 ? "Fired" : "No flash"
+                }
+
+                if meta.meteringMode == nil,
+                   let mm = exif[kCGImagePropertyExifMeteringMode as String] as? Int {
+                    meta.meteringMode = meteringModeString(mm)
+                }
+
+                if meta.exposureProgram == nil,
+                   let ep = exif[kCGImagePropertyExifExposureProgram as String] as? Int {
+                    meta.exposureProgram = exposureProgramString(ep)
+                }
             }
         }
 
