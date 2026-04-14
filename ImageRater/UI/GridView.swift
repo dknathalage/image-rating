@@ -31,11 +31,6 @@ struct GridView: View {
 
     @State private var cellFrames: [NSManagedObjectID: CGRect] = [:]
     @State private var dragRect: CGRect?
-    @State private var scrollProxy: ScrollViewProxy?
-    // Viewport dimensions tracked for edge-scroll
-    @State private var viewportHeight: CGFloat = 0
-    @State private var scrollOffset: CGFloat = 0
-    @State private var lastAutoScrollTime: Date = .distantPast
 
     var body: some View {
         if images.isEmpty && !sessionHasImages {
@@ -90,31 +85,9 @@ struct GridView: View {
                     .coordinateSpace(name: "grid")
                     .gesture(
                         DragGesture(minimumDistance: 4, coordinateSpace: .named("grid"))
-                            .onChanged { handleDrag($0, proxy: proxy) }
-                            .onEnded { _ in
-                                dragRect = nil
-                            }
+                            .onChanged { handleDrag($0) }
+                            .onEnded { _ in dragRect = nil }
                     )
-                    // Track scroll offset for edge-scroll calculation
-                    .background(
-                        GeometryReader { geo in
-                            Color.clear.preference(
-                                key: ScrollOffsetKey.self,
-                                value: -geo.frame(in: .named("scroll")).minY
-                            )
-                        }
-                    )
-                }
-                .coordinateSpace(name: "scroll")
-                .background(
-                    GeometryReader { geo in
-                        Color.clear
-                            .onAppear { viewportHeight = geo.size.height }
-                            .onChange(of: geo.size) { _, s in viewportHeight = s.height }
-                    }
-                )
-                .onPreferenceChange(ScrollOffsetKey.self) { offset in
-                    scrollOffset = offset
                 }
                 .contextMenu {
                     if !selectedIDs.isEmpty {
@@ -139,7 +112,6 @@ struct GridView: View {
                         proxy.scrollTo(id, anchor: .center)
                     }
                 }
-                .onAppear { scrollProxy = proxy }
             }
 
             Button("") { selectedIDs = Set(images.map(\.objectID)) }
@@ -176,9 +148,9 @@ struct GridView: View {
         }
     }
 
-    // MARK: - Rubber band + edge-scroll
+    // MARK: - Rubber band selection
 
-    private func handleDrag(_ value: DragGesture.Value, proxy: ScrollViewProxy) {
+    private func handleDrag(_ value: DragGesture.Value) {
         let s = value.startLocation, c = value.location
         let rect = CGRect(
             x: min(s.x, c.x), y: min(s.y, c.y),
@@ -191,46 +163,5 @@ struct GridView: View {
             frame.intersects(rect) ? id : nil
         })
         selectedIDs = mods.contains(.shift) ? selectedIDs.union(hit) : hit
-
-        // Edge-scroll: trigger only when cursor exits the viewport boundary.
-        // Throttled to 1 row per 0.3s. Reads live state each call so targets are fresh.
-        let viewportY = c.y - scrollOffset
-        guard viewportY < 0 || viewportY > viewportHeight else { return }
-        let now = Date()
-        guard now.timeIntervalSince(lastAutoScrollTime) >= 0.3 else { return }
-
-        // Row pitch = cell height + LazyVGrid inter-cell spacing.
-        // Target the cell whose top is 1 row above/below the current viewport top,
-        // then use .top anchor so the viewport starts exactly there.
-        let rowPitch = cellSize * 0.6875 + 8
-
-        if viewportY < 0 {
-            // Cursor above viewport — scroll up 1 row.
-            let targetTopY = max(0, scrollOffset - rowPitch)
-            if let best = cellFrames.min(by: {
-                abs($0.value.minY - targetTopY) < abs($1.value.minY - targetTopY)
-            }) {
-                proxy.scrollTo(best.key, anchor: .top)
-                lastAutoScrollTime = now
-            }
-        } else {
-            // Cursor below viewport — scroll down 1 row.
-            let targetTopY = scrollOffset + rowPitch
-            if let best = cellFrames.min(by: {
-                abs($0.value.minY - targetTopY) < abs($1.value.minY - targetTopY)
-            }) {
-                proxy.scrollTo(best.key, anchor: .top)
-                lastAutoScrollTime = now
-            }
-        }
-    }
-}
-
-// MARK: - Scroll offset preference
-
-private struct ScrollOffsetKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
     }
 }
