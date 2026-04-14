@@ -105,12 +105,13 @@ enum RatingPipeline {
               let pb = buffer else { throw RatingError.pixelBufferCreationFailed }
         CVPixelBufferLockBaseAddress(pb, [])
         defer { CVPixelBufferUnlockBaseAddress(pb, []) }
-        guard let ctx = CGContext(
+        guard let sRGB = CGColorSpace(name: CGColorSpace.sRGB),
+              let ctx = CGContext(
             data: CVPixelBufferGetBaseAddress(pb),
             width: width, height: height,
             bitsPerComponent: 8,
             bytesPerRow: CVPixelBufferGetBytesPerRow(pb),
-            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            space: sRGB,
             bitmapInfo: CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.noneSkipFirst.rawValue
         ) else { throw RatingError.pixelBufferCreationFailed }
         ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
