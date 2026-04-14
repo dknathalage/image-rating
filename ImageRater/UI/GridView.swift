@@ -136,6 +136,12 @@ struct GridView: View {
                         uniquingKeysWith: { _, new in new }
                     )
                 }
+                .onChange(of: anchorID) { _, id in
+                    guard let id else { return }
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        proxy.scrollTo(id, anchor: .center)
+                    }
+                }
                 .onAppear { scrollProxy = proxy }
             }
 
