@@ -21,6 +21,9 @@ targets:
           - "**/*.md"
     resources:
       - ImageRater/CoreData/ImageRater.xcdatamodeld
+      - models/topiq-nr.mlpackage
+      - models/topiq-swin.mlpackage
+      - models/clip-vision.mlpackage
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.imageRater.ImageRater
