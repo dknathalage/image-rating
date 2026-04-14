@@ -40,3 +40,40 @@ def test_optimize_requires_clipIQA_column():
     labels = pd.DataFrame({"filename": ["a.jpg"], "gt_stars": [3]})
     with pytest.raises(ValueError, match="clipIQA"):
         optimize_params(df, labels, SearchSpace(), n_trials=2, seed=0)
+
+
+def _make_oracle_data(n=200, seed=0):
+    rng = np.random.default_rng(seed)
+    tech = rng.random(n)
+    aes  = rng.random(n)
+    clip = rng.random(n)
+    true_combined = 0.7 * tech + 0.1 * aes + 0.2 * clip
+    ranks = pd.Series(true_combined).rank(method="first") - 1
+    gt_stars = np.clip((ranks / n // 0.2).astype(int), 0, 4).values + 1
+    scores_df = pd.DataFrame({
+        "filename": [f"{i}.jpg" for i in range(n)],
+        "topiqTechnical": tech,
+        "topiqAesthetic": aes,
+        "clipEmbedding": [list(rng.random(4)) for _ in range(n)],
+    })
+    scores_df["clipIQA"] = clip
+    labels_df = pd.DataFrame({"filename": scores_df.filename, "gt_stars": gt_stars})
+    return scores_df, labels_df
+
+
+def test_optimize_fixed_bucket_edges():
+    import pytest
+    scores_df, labels_df = _make_oracle_data()
+    space = SearchSpace(search_bucket_edges=False)
+    best = optimize_params(scores_df, labels_df, space, n_trials=20, seed=1)
+    assert best.params.bucket_edges == (0.2, 0.4, 0.6, 0.8)
+    assert best.metrics.spearman > 0.3
+
+
+def test_optimize_reproducible():
+    import pytest
+    scores_df, labels_df = _make_oracle_data()
+    space = SearchSpace()
+    r1 = optimize_params(scores_df, labels_df, space, n_trials=10, seed=42)
+    r2 = optimize_params(scores_df, labels_df, space, n_trials=10, seed=42)
+    assert r1.params.w_tech == pytest.approx(r2.params.w_tech)

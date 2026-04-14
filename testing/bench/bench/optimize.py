@@ -31,8 +31,6 @@ def _objective_factory(
         wT = trial.suggest_float("w_tech", *space.w_tech_range)
         wA = trial.suggest_float("w_aes",  *space.w_aes_range)
         wC = trial.suggest_float("w_clip", *space.w_clip_range)
-        if wT + wA + wC < 1e-6:
-            return 5.0  # degenerate — penalise
         s = trial.suggest_float("strictness", *space.strictness_range)
         if space.search_bucket_edges:
             e1 = trial.suggest_float("e1", 0.05, 0.35)
@@ -41,6 +39,8 @@ def _objective_factory(
             e4 = trial.suggest_float("e4", e3 + 0.05, 0.95)
         else:
             e1, e2, e3, e4 = 0.2, 0.4, 0.6, 0.8
+        if wT + wA + wC < 1e-6:
+            return 5.0  # degenerate — penalise
         params = EnsembleParams(
             w_tech=wT, w_aes=wA, w_clip=wC, strictness=s,
             bucket_edges=(e1, e2, e3, e4),
