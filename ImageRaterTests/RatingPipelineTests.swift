@@ -34,11 +34,21 @@ final class RatingPipelineTests: XCTestCase {
 
     // MARK: - CLIP-IQA+ score
 
-    func testClipIQAPlusScoreIsBetweenZeroAndOne() {
-        // Any L2-normalised embedding must produce a score in [0,1]
-        var emb = [Float](repeating: 0, count: 512)
-        emb[0] = 1.0   // unit vector
-        let score = RatingPipeline.clipIQAScore(embedding: emb)
+    func testClipIQAGoodPhotoEmbeddingScoresAboveHalf() {
+        // Feeding the "Good photo" text embedding to clipIQAScore should strongly prefer "Good photo"
+        let score = RatingPipeline.clipIQAScore(embedding: CLIPTextEmbeddings.goodPhoto)
+        XCTAssertGreaterThan(score, 0.5, "Good photo embedding should score above 0.5")
+    }
+
+    func testClipIQABadPhotoEmbeddingScoresBelowHalf() {
+        // Feeding the "Bad photo" text embedding should prefer "Bad photo" → low score
+        let score = RatingPipeline.clipIQAScore(embedding: CLIPTextEmbeddings.badPhoto)
+        XCTAssertLessThan(score, 0.5, "Bad photo embedding should score below 0.5")
+    }
+
+    func testClipIQAScoreIsBoundedZeroToOne() {
+        // Softmax output must always be in [0,1]
+        let score = RatingPipeline.clipIQAScore(embedding: CLIPTextEmbeddings.goodPhoto)
         XCTAssertGreaterThanOrEqual(score, 0.0)
         XCTAssertLessThanOrEqual(score, 1.0)
     }

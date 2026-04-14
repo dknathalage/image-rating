@@ -10,6 +10,7 @@ private let log = Logger(subsystem: "com.imagerating", category: "RatingPipeline
 enum RatingError: Error {
     case pixelBufferCreationFailed
     case modelNotFound(String)
+    case inferenceOutputMismatch
 }
 
 enum RatingPipeline {
@@ -72,13 +73,17 @@ enum RatingPipeline {
         technical: Float, aesthetic: Float, semantic: Float,
         weights: (technical: Float, aesthetic: Float, semantic: Float)
     ) -> Float {
-        weights.technical * technical + weights.aesthetic * aesthetic + weights.semantic * semantic
+        precondition(abs(weights.technical + weights.aesthetic + weights.semantic - 1.0) < 0.01,
+                     "combinedQuality: weights must sum to 1.0, got \(weights.technical + weights.aesthetic + weights.semantic)")
+        return weights.technical * technical + weights.aesthetic * aesthetic + weights.semantic * semantic
     }
 
     /// CLIP-IQA+: softmax([dot(img, good), dot(img, bad)])[0] = P("Good photo")
     static func clipIQAScore(embedding: [Float]) -> Float {
         let good = CLIPTextEmbeddings.goodPhoto
         let bad  = CLIPTextEmbeddings.badPhoto
+        precondition(embedding.count == good.count,
+                     "clipIQAScore: embedding size \(embedding.count) does not match text embedding size \(good.count)")
         let dotGood: Float = zip(embedding, good).reduce(0) { $0 + $1.0 * $1.1 }
         let dotBad:  Float = zip(embedding, bad).reduce(0)  { $0 + $1.0 * $1.1 }
         let maxVal  = max(dotGood, dotBad)
@@ -105,7 +110,7 @@ enum RatingPipeline {
             width: width, height: height,
             bitsPerComponent: 8,
             bytesPerRow: CVPixelBufferGetBytesPerRow(pb),
-            space: CGColorSpaceCreateDeviceRGB(),
+            space: CGColorSpace(name: CGColorSpace.sRGB)!,
             bitmapInfo: CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.noneSkipFirst.rawValue
         ) else { throw RatingError.pixelBufferCreationFailed }
         ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
@@ -118,31 +123,31 @@ enum RatingPipeline {
         let buf   = try cgImageToPixelBuffer(image, width: inputSize, height: inputSize)
         let input = try MLDictionaryFeatureProvider(dictionary: ["image": buf])
         let out   = try await model.prediction(from: input)
-        return extractScalar(from: out)
+        return try extractScalar(from: out)
     }
 
     private static func inferEmbedding(image: CGImage, model: MLModel, inputSize: Int) async throws -> [Float] {
         let buf   = try cgImageToPixelBuffer(image, width: inputSize, height: inputSize)
         let input = try MLDictionaryFeatureProvider(dictionary: ["image": buf])
         let out   = try await model.prediction(from: input)
-        return extractFloatArray(from: out)
+        return try extractFloatArray(from: out)
     }
 
-    private static func extractScalar(from output: MLFeatureProvider) -> Float {
+    private static func extractScalar(from output: MLFeatureProvider) throws -> Float {
         for name in output.featureNames {
             if let arr = output.featureValue(for: name)?.multiArrayValue { return arr[0].floatValue }
             if let d   = output.featureValue(for: name)?.doubleValue     { return Float(d) }
         }
-        return 0.5
+        throw RatingError.inferenceOutputMismatch
     }
 
-    private static func extractFloatArray(from output: MLFeatureProvider) -> [Float] {
+    private static func extractFloatArray(from output: MLFeatureProvider) throws -> [Float] {
         for name in output.featureNames {
             if let arr = output.featureValue(for: name)?.multiArrayValue {
                 return (0..<arr.count).map { arr[$0].floatValue }
             }
         }
-        return Array(repeating: 0, count: 512)
+        throw RatingError.inferenceOutputMismatch
     }
 
     private static func loadBundledModel(named name: String, configuration: MLModelConfiguration) throws -> MLModel {
@@ -159,10 +164,10 @@ enum RatingPipeline {
     }
 
     private static var isAppleSilicon: Bool {
-        var info = utsname()
-        uname(&info)
-        return withUnsafePointer(to: &info.machine) {
-            $0.withMemoryRebound(to: CChar.self, capacity: 1) { String(cString: $0) }
-        }.hasPrefix("arm")
+        #if arch(arm64)
+        return true
+        #else
+        return false
+        #endif
     }
 }
