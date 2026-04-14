@@ -33,3 +33,7 @@ testing/
 
 # Tooling
 .superpowers/
+
+# ML model binaries (large, distribute via releases not git)
+*.mlmodelc/
+ImageRater/MLModels/
