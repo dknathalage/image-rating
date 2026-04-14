@@ -121,11 +121,6 @@ struct ContentView: View {
                     selectedIDs = [record.objectID]
                     detailRecord = record
                 },
-                onRate: { record, stars in
-                    selectedIDs = [record.objectID]
-                    anchorID = record.objectID
-                    setRating(stars)
-                },
                 onRemoveRatings: { removeRatings() },
                 onRunAI: { runAIOnSelected() }
             )
@@ -198,16 +193,7 @@ struct ContentView: View {
             }
             .onAppear(perform: handleAppear)
             .onDisappear { keyboard.stop() }
-            .onChange(of: selectedSession) { _, session in
-                guard let session else { return }
-                let size = CGSize(width: cellSize, height: cellSize * 0.6875)
-                Task {
-                    let urls = (session.images?.allObjects as? [ImageRecord])?.compactMap {
-                        $0.filePath.map { URL(filePath: $0) }
-                    } ?? []
-                    await ThumbnailCache.shared.prefetch(urls: urls, size: size)
-                }
-            }
+            .onChange(of: selectedSession) { _, _ in }
             .modifier(FilterChangeModifier(
                 selectedSession: $selectedSession,
                 ratingFilter: $ratingFilter,
