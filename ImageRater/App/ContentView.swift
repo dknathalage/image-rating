@@ -50,81 +50,137 @@ struct ContentView: View {
     @State private var processingTotal: Int = 0
     @State private var showResetConfirm = false
     @State private var ratingFilter: Set<Int> = []
+    @State private var minTechnicalScore: Double = 0.0
+    @State private var minAestheticScore: Double = 0.0
+    @State private var hideBlurry: Bool = false
+    @State private var hideExposure: Bool = false
+    @State private var clusterRepsOnly: Bool = false
+    @State private var varietySetOnly: Bool = false
     @StateObject private var keyboard = KeyboardHandler()
 
-    var body: some View {
-        NavigationSplitView {
-            List(selection: $selectedSession) {
-                Section("Sessions") {
-                    ForEach(sessions) { session in
-                        Label(
-                            URL(filePath: session.folderPath ?? "").lastPathComponent,
-                            systemImage: "folder"
+    @ViewBuilder private var sidebar: some View {
+        List(selection: $selectedSession) {
+            Section("Sessions") {
+                ForEach(sessions) { session in
+                    Label(
+                        URL(filePath: session.folderPath ?? "").lastPathComponent,
+                        systemImage: "folder"
+                    )
+                    .tag(session)
+                }
+            }
+            Section("Filter by Rating") {
+                RatingFilterView(
+                    images: Array(sessionImages),
+                    ratingFilter: $ratingFilter,
+                    minTechnicalScore: $minTechnicalScore,
+                    minAestheticScore: $minAestheticScore,
+                    hideBlurry: $hideBlurry,
+                    hideExposure: $hideExposure,
+                    clusterRepsOnly: $clusterRepsOnly,
+                    varietySetOnly: $varietySetOnly
+                )
+                .selectionDisabled()
+            }
+        }
+        .navigationTitle("Sessions")
+        .toolbar {
+            ToolbarItem {
+                Button(action: openFolder) {
+                    Label("Open Folder", systemImage: "folder.badge.plus")
+                }
+            }
+            ToolbarItem {
+                Button { showModelStore = true } label: {
+                    Label("Models", systemImage: "square.and.arrow.down")
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private var contentPanel: some View {
+        if let session = selectedSession {
+            GridView(images: filteredImages, sessionHasImages: !sessionImages.isEmpty, selectedIDs: $selectedIDs, anchorID: $anchorID)
+                .safeAreaInset(edge: .bottom) {
+                    if let status = processingStatus {
+                        ProcessingStatusBar(
+                            status: status,
+                            done: processingDone,
+                            total: processingTotal,
+                            onCancel: { processingTask?.cancel() }
                         )
-                        .tag(session)
                     }
                 }
-                Section("Filter by Rating") {
-                    RatingFilterView(images: Array(sessionImages), ratingFilter: $ratingFilter)
-                        .selectionDisabled()
+                .toolbar {
+                    ToolbarItem {
+                        Button(action: { runPipeline(session: session) }) {
+                            Label("Process", systemImage: "wand.and.stars")
+                        }
+                    }
+                    ToolbarItem {
+                        Button(action: { showResetConfirm = true }) {
+                            Label("Reset", systemImage: "arrow.counterclockwise")
+                        }
+                        .disabled(processingStatus != nil)
+                    }
+                    ToolbarItem {
+                        Button(action: { exportMetadata(session: session) }) {
+                            Label("Export XMP", systemImage: "square.and.arrow.up")
+                        }
+                    }
                 }
+                .confirmationDialog("Reset all ratings?",
+                                    isPresented: $showResetConfirm,
+                                    titleVisibility: .visible) {
+                    Button("Reset", role: .destructive) { resetSession(session) }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("Clears all AI ratings, cull results, and sidecar files. Manual star overrides are preserved.")
+                }
+        } else {
+            ContentUnavailableView("Open a Folder", systemImage: "folder.badge.plus",
+                                    description: Text("Use the toolbar button to import images"))
+        }
+    }
+
+    var body: some View {
+        splitView
+            .sheet(isPresented: $showModelStore) { ModelStoreView() }
+            .alert("Processing Failed", isPresented: processingErrorBinding) {
+                Button("OK") { processingError = nil }
+            } message: {
+                Text(processingError ?? "")
             }
-            .navigationTitle("Sessions")
-            .toolbar {
-                ToolbarItem {
-                    Button(action: openFolder) {
-                        Label("Open Folder", systemImage: "folder.badge.plus")
-                    }
-                }
-                ToolbarItem {
-                    Button { showModelStore = true } label: {
-                        Label("Models", systemImage: "square.and.arrow.down")
-                    }
-                }
-            }
+            .onAppear(perform: handleAppear)
+            .onDisappear { keyboard.stop() }
+            .modifier(FilterChangeModifier(
+                selectedSession: $selectedSession,
+                ratingFilter: $ratingFilter,
+                minTechnicalScore: $minTechnicalScore,
+                minAestheticScore: $minAestheticScore,
+                hideBlurry: $hideBlurry,
+                hideExposure: $hideExposure,
+                clusterRepsOnly: $clusterRepsOnly,
+                varietySetOnly: $varietySetOnly,
+                anchorID: $anchorID,
+                selectedIDs: $selectedIDs,
+                filteredImages: filteredImages,
+                sessionImages: sessionImages
+            ))
+    }
+
+    private var processingErrorBinding: Binding<Bool> {
+        Binding(
+            get: { processingError != nil },
+            set: { if !$0 { processingError = nil } }
+        )
+    }
+
+    @ViewBuilder private var splitView: some View {
+        NavigationSplitView {
+            sidebar
         } content: {
-            if let session = selectedSession {
-                GridView(images: filteredImages, sessionHasImages: !sessionImages.isEmpty, selectedIDs: $selectedIDs, anchorID: $anchorID)
-                    .safeAreaInset(edge: .bottom) {
-                        if let status = processingStatus {
-                            ProcessingStatusBar(
-                                status: status,
-                                done: processingDone,
-                                total: processingTotal,
-                                onCancel: { processingTask?.cancel() }
-                            )
-                        }
-                    }
-                    .toolbar {
-                        ToolbarItem {
-                            Button(action: { runPipeline(session: session) }) {
-                                Label("Process", systemImage: "wand.and.stars")
-                            }
-                        }
-                        ToolbarItem {
-                            Button(action: { showResetConfirm = true }) {
-                                Label("Reset", systemImage: "arrow.counterclockwise")
-                            }
-                            .disabled(processingStatus != nil)
-                        }
-                        ToolbarItem {
-                            Button(action: { exportMetadata(session: session) }) {
-                                Label("Export XMP", systemImage: "square.and.arrow.up")
-                            }
-                        }
-                    }
-                    .confirmationDialog("Reset all ratings?",
-                                        isPresented: $showResetConfirm,
-                                        titleVisibility: .visible) {
-                        Button("Reset", role: .destructive) { resetSession(session) }
-                        Button("Cancel", role: .cancel) {}
-                    } message: {
-                        Text("Clears all AI ratings, cull results, and sidecar files. Manual star overrides are preserved.")
-                    }
-            } else {
-                ContentUnavailableView("Open a Folder", systemImage: "folder.badge.plus",
-                                        description: Text("Use the toolbar button to import images"))
-            }
+            contentPanel
         } detail: {
             if let record = anchorRecord {
                 DetailView(record: record, onPrev: navigatePrev, onNext: navigateNext, onRate: setRating)
@@ -132,37 +188,20 @@ struct ContentView: View {
                 ContentUnavailableView("Select an Image", systemImage: "photo")
             }
         }
-        .sheet(isPresented: $showModelStore) { ModelStoreView() }
-        .alert("Processing Failed", isPresented: Binding(
-            get: { processingError != nil },
-            set: { if !$0 { processingError = nil } }
-        )) {
-            Button("OK") { processingError = nil }
-        } message: {
-            Text(processingError ?? "")
-        }
-        .onAppear {
-            keyboard.onPrev = navigatePrev
-            keyboard.onNext = navigateNext
-            keyboard.onRate = setRating
-            keyboard.start()
-        }
-        .onDisappear { keyboard.stop() }
-        .onChange(of: selectedSession) { _, session in
-            ratingFilter = []
-            selectedIDs = []
-            anchorID = nil
-            sessionImages.nsPredicate = session.map {
-                NSPredicate(format: "session == %@", $0)
-            } ?? NSPredicate(value: false)
-        }
-        .onChange(of: ratingFilter) { _, _ in
-            guard let id = anchorID else { return }
-            if !filteredImages.contains(where: { $0.objectID == id }) {
-                selectedIDs = []
-                anchorID = nil
-            }
-        }
+    }
+
+    private func handleAppear() {
+        keyboard.onPrev = navigatePrev
+        keyboard.onNext = navigateNext
+        keyboard.onRate = setRating
+        keyboard.start()
+        let ud = UserDefaults.standard
+        minTechnicalScore = ud.double(forKey: "filterMinTech")
+        minAestheticScore = ud.double(forKey: "filterMinAes")
+        hideBlurry        = ud.bool(forKey: "filterHideBlurry")
+        hideExposure      = ud.bool(forKey: "filterHideExposure")
+        clusterRepsOnly   = ud.bool(forKey: "filterClusterReps")
+        varietySetOnly    = ud.bool(forKey: "filterVarietySet")
     }
 
     // MARK: - Navigation
@@ -174,9 +213,42 @@ struct ContentView: View {
     }
 
     private var filteredImages: [ImageRecord] {
-        let all = Array(sessionImages)
-        guard !ratingFilter.isEmpty else { return all }
-        return all.filter { ratingFilter.contains(effectiveRating($0)) }
+        var images = Array(sessionImages)
+
+        if !ratingFilter.isEmpty {
+            images = images.filter { ratingFilter.contains(effectiveRating($0)) }
+        }
+        if minTechnicalScore > 0 {
+            images = images.filter { Double($0.topiqTechnicalScore * 10) >= minTechnicalScore }
+        }
+        if minAestheticScore > 0 {
+            images = images.filter { Double($0.topiqAestheticScore * 10) >= minAestheticScore }
+        }
+        if hideBlurry {
+            images = images.filter { $0.cullReason != CullReason.blurry.rawValue }
+        }
+        if hideExposure {
+            images = images.filter { abs($0.exposureScore) <= 1.5 }
+        }
+        if clusterRepsOnly {
+            images = images.filter { $0.clusterRank == 1 }
+        }
+        if varietySetOnly {
+            var bestPerCluster: [Int32: ImageRecord] = [:]
+            for img in images {
+                let cid = img.clusterID
+                guard cid >= 0 else { continue }
+                if let existing = bestPerCluster[cid] {
+                    let existingStars = existing.ratingStars?.int16Value ?? 0
+                    let imgStars = img.ratingStars?.int16Value ?? 0
+                    if imgStars > existingStars { bestPerCluster[cid] = img }
+                } else {
+                    bestPerCluster[cid] = img
+                }
+            }
+            images = Array(bestPerCluster.values)
+        }
+        return images
     }
 
     private var anchorRecord: ImageRecord? {
@@ -304,6 +376,63 @@ struct ContentView: View {
                 try? MetadataWriter.writeSidecar(stars: effectiveStars, for: url)
             }
         }
+    }
+}
+
+private struct FilterChangeModifier: ViewModifier {
+    @Binding var selectedSession: Session?
+    @Binding var ratingFilter: Set<Int>
+    @Binding var minTechnicalScore: Double
+    @Binding var minAestheticScore: Double
+    @Binding var hideBlurry: Bool
+    @Binding var hideExposure: Bool
+    @Binding var clusterRepsOnly: Bool
+    @Binding var varietySetOnly: Bool
+    @Binding var anchorID: NSManagedObjectID?
+    @Binding var selectedIDs: Set<NSManagedObjectID>
+    let filteredImages: [ImageRecord]
+    let sessionImages: FetchedResults<ImageRecord>
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: selectedSession) { _, session in
+                ratingFilter = []
+                selectedIDs = []
+                anchorID = nil
+                sessionImages.nsPredicate = session.map {
+                    NSPredicate(format: "session == %@", $0)
+                } ?? NSPredicate(value: false)
+            }
+            .onChange(of: ratingFilter) { _, _ in
+                guard let id = anchorID else { return }
+                if !filteredImages.contains(where: { $0.objectID == id }) {
+                    selectedIDs = []
+                    anchorID = nil
+                }
+            }
+            .onChange(of: minTechnicalScore) { _, v in UserDefaults.standard.set(v, forKey: "filterMinTech") }
+            .onChange(of: minAestheticScore) { _, v in UserDefaults.standard.set(v, forKey: "filterMinAes") }
+            .modifier(FilterUDModifier(
+                hideBlurry: $hideBlurry,
+                hideExposure: $hideExposure,
+                clusterRepsOnly: $clusterRepsOnly,
+                varietySetOnly: $varietySetOnly
+            ))
+    }
+}
+
+private struct FilterUDModifier: ViewModifier {
+    @Binding var hideBlurry: Bool
+    @Binding var hideExposure: Bool
+    @Binding var clusterRepsOnly: Bool
+    @Binding var varietySetOnly: Bool
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: hideBlurry)      { _, v in UserDefaults.standard.set(v, forKey: "filterHideBlurry") }
+            .onChange(of: hideExposure)    { _, v in UserDefaults.standard.set(v, forKey: "filterHideExposure") }
+            .onChange(of: clusterRepsOnly) { _, v in UserDefaults.standard.set(v, forKey: "filterClusterReps") }
+            .onChange(of: varietySetOnly)  { _, v in UserDefaults.standard.set(v, forKey: "filterVarietySet") }
     }
 }
 
