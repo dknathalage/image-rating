@@ -26,11 +26,8 @@ struct ThumbnailCell: View {
     let cellSize: CGFloat
     let onSelect: (NSEvent.ModifierFlags) -> Void
     let onDoubleClick: () -> Void
-    let onRate: (Int) -> Void
 
     @State private var thumbnail: NSImage?
-    @State private var isHovering = false
-    @State private var hoverStar: Int = 0
 
     private var isProcessing: Bool {
         record.processState == ProcessState.culling || record.processState == ProcessState.rating
@@ -42,125 +39,113 @@ struct ThumbnailCell: View {
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            Group {
-                if let thumb = thumbnail {
-                    Image(nsImage: thumb)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } else {
-                    Rectangle().fill(Color.secondary.opacity(0.2))
-                        .overlay(SpinnerView(size: 20))
-                }
-            }
-            .frame(width: cellSize, height: cellSize * 0.6875)
-            .clipped()
-            .cornerRadius(6)
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
-            )
-            .overlay {
-                if isProcessing {
-                    ZStack {
-                        Color.black.opacity(0.45)
-                        VStack(spacing: 6) {
-                            SpinnerView(size: 26, color: .white)
-                            Text(processLabel)
-                                .font(.caption2)
-                                .fontWeight(.semibold)
-                                .foregroundStyle(.white)
-                        }
-                    }
-                    .cornerRadius(6)
-                }
-            }
-            .overlay(alignment: .topLeading) {
-                if record.scoringFilePath != nil {
-                    Text("RAW")
-                        .font(.system(size: 7, weight: .bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 3).padding(.vertical, 1)
-                        .background(Color.orange.opacity(0.85))
-                        .clipShape(RoundedRectangle(cornerRadius: 2))
-                        .padding(4)
-                }
-            }
-            // Hover star rating bar
-            .overlay(alignment: .bottom) {
-                if isHovering {
-                    HStack(spacing: 3) {
-                        ForEach(1...5, id: \.self) { star in
-                            Image(systemName: star <= hoverStar ? "star.fill" : "star")
-                                .font(.system(size: max(8, cellSize * 0.07)))
-                                .foregroundStyle(.white)
-                                .onHover { inside in if inside { hoverStar = star } }
-                                .onTapGesture { onRate(star) }
-                        }
-                    }
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 3)
-                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 4))
-                    .padding(.bottom, 6)
-                }
-            }
-            // Rating overlay — bottom strip showing AI + manual ratings
-            .overlay(alignment: .bottom) {
-                if !isHovering {
-                    let aiStars = Int(record.ratingStars?.int16Value ?? 0)
-                    let manualStars = Int(record.userOverride?.int16Value ?? 0)
-                    let hasAI = aiStars > 0
-                    let hasManual = manualStars > 0
-                    if hasAI || hasManual {
-                        HStack(spacing: 4) {
-                            if hasAI {
-                                HStack(spacing: 1) {
-                                    Text("AI")
-                                        .font(.system(size: max(6, cellSize * 0.055), weight: .semibold))
-                                        .foregroundStyle(.white.opacity(0.75))
-                                    Text(String(repeating: "★", count: aiStars))
-                                        .font(.system(size: max(6, cellSize * 0.055)))
-                                        .foregroundStyle(.white.opacity(0.85))
-                                }
-                            }
-                            if hasAI && hasManual {
-                                Text("·")
-                                    .font(.system(size: max(6, cellSize * 0.055)))
-                                    .foregroundStyle(.white.opacity(0.5))
-                            }
-                            if hasManual {
-                                HStack(spacing: 1) {
-                                    Text(String(repeating: "★", count: manualStars))
-                                        .font(.system(size: max(6, cellSize * 0.055)))
-                                        .foregroundStyle(.yellow)
-                                    Text("M")
-                                        .font(.system(size: max(6, cellSize * 0.055), weight: .semibold))
-                                        .foregroundStyle(.yellow.opacity(0.9))
-                                }
+            imageLayer
+                .frame(width: cellSize, height: cellSize * 0.6875)
+                .clipped()
+                .cornerRadius(6)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(isSelected ? Color.accentColor : Color.clear, lineWidth: 2)
+                )
+                .overlay {
+                    if isProcessing {
+                        ZStack {
+                            Color.black.opacity(0.45)
+                            VStack(spacing: 6) {
+                                SpinnerView(size: 26, color: .white)
+                                Text(processLabel)
+                                    .font(.caption2)
+                                    .fontWeight(.semibold)
+                                    .foregroundStyle(.white)
                             }
                         }
-                        .padding(.horizontal, 5)
-                        .padding(.vertical, 2)
-                        .background(.black.opacity(0.55))
-                        .clipShape(RoundedRectangle(cornerRadius: 3))
-                        .padding(.bottom, 4)
+                        .cornerRadius(6)
                     }
                 }
-            }
+                .overlay(alignment: .topLeading) {
+                    if record.scoringFilePath != nil {
+                        Text("RAW")
+                            .font(.system(size: 7, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 3).padding(.vertical, 1)
+                            .background(Color.orange.opacity(0.85))
+                            .clipShape(RoundedRectangle(cornerRadius: 2))
+                            .padding(4)
+                    }
+                }
+                .overlay(alignment: .bottom) {
+                    ratingsOverlay
+                }
         }
-        .onHover { inside in
-            isHovering = inside
-            if !inside { hoverStar = 0 }
-        }
-        .onTapGesture(count: 2) {
-            onDoubleClick()
-        }
+        .onTapGesture(count: 2) { onDoubleClick() }
         .onTapGesture {
-            let mods = NSApp.currentEvent?.modifierFlags ?? []
-            onSelect(mods)
+            onSelect(NSApp.currentEvent?.modifierFlags ?? [])
         }
-        .task(id: "\(record.objectID)-\(cellSize)") {
+        .task(id: "\(record.objectID.uriRepresentation())-\(cellSize)") {
             let url = URL(filePath: record.filePath ?? "")
-            thumbnail = await ThumbnailCache.shared.thumbnail(for: url, size: CGSize(width: cellSize, height: cellSize * 0.6875))
+            let img = await ThumbnailCache.shared.thumbnail(
+                for: url,
+                size: CGSize(width: cellSize, height: cellSize * 0.6875)
+            )
+            guard !Task.isCancelled else { return }
+            thumbnail = img
+        }
+    }
+
+    // MARK: - Subviews
+
+    @ViewBuilder
+    private var imageLayer: some View {
+        if let thumb = thumbnail {
+            Image(nsImage: thumb)
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+        } else {
+            Rectangle()
+                .fill(Color.secondary.opacity(0.2))
+                .overlay(SpinnerView(size: 20))
+        }
+    }
+
+    @ViewBuilder
+    private var ratingsOverlay: some View {
+        let aiStars = Int(record.ratingStars?.int16Value ?? 0)
+        let manualStars = Int(record.userOverride?.int16Value ?? 0)
+        let hasAI = aiStars > 0
+        let hasManual = manualStars > 0
+        if hasAI || hasManual {
+            HStack(spacing: 4) {
+                if hasAI {
+                    HStack(spacing: 1) {
+                        Text("AI")
+                            .font(.system(size: max(6, cellSize * 0.055), weight: .semibold))
+                            .foregroundStyle(.white.opacity(0.75))
+                        Text(String(repeating: "★", count: aiStars))
+                            .font(.system(size: max(6, cellSize * 0.055)))
+                            .foregroundStyle(.white.opacity(0.85))
+                    }
+                }
+                if hasAI && hasManual {
+                    Text("·")
+                        .font(.system(size: max(6, cellSize * 0.055)))
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+                if hasManual {
+                    HStack(spacing: 1) {
+                        Text(String(repeating: "★", count: manualStars))
+                            .font(.system(size: max(6, cellSize * 0.055)))
+                            .foregroundStyle(.yellow)
+                        Text("M")
+                            .font(.system(size: max(6, cellSize * 0.055), weight: .semibold))
+                            .foregroundStyle(.yellow.opacity(0.9))
+                    }
+                }
+            }
+            .padding(.horizontal, 5)
+            .padding(.vertical, 2)
+            .background(.black.opacity(0.55))
+            .clipShape(RoundedRectangle(cornerRadius: 3))
+            .padding(.bottom, 4)
         }
     }
 }
