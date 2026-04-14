@@ -122,20 +122,71 @@ Closing compare modal does not change selection.
 
 ---
 
-## 6. File Changes
+## 6. Thumbnail Size Control
+
+User-adjustable grid cell size via a slider in the grid toolbar.
+
+- `@AppStorage("thumbnailSize") var thumbnailSize: CGFloat = 160` in `ContentView`.
+- Slider range: 100–320 pt. Step: continuous with debounce (0.3 s) before triggering re-decode.
+- Passed to `GridView` as `cellSize: CGFloat`. `GridItem(.adaptive(minimum: cellSize))`.
+- Passed to `ThumbnailCell` which sizes to `frame(width: cellSize, height: cellSize * 0.6875)` (preserves current 160:110 aspect ratio).
+- Cache key already includes size, so new size generates fresh cache entries.
+- Debounce prevents flooding the decode queue during slider drag.
+
+---
+
+## 7. Fast Thumbnail Loading
+
+### Current bottleneck
+`ThumbnailCell.task` triggers decode on scroll-into-view. First load requires disk read → JPEG decode or LibRaw preview extraction → disk write. Subsequent loads hit disk/mem cache and are fast.
+
+### Improvements
+
+**7a. Prefetch on session select**  
+When `selectedSession` changes, enqueue background prefetch for all session image URLs at current `cellSize`:
+```swift
+ThumbnailCache.shared.prefetch(urls: imageURLs, size: CGSize(width: cellSize, height: cellSize * 0.6875))
+```
+`ThumbnailCache.prefetch` adds ops at `.background` QoS to `decodeQueue` — lower priority than visible cells so on-screen loads always win.
+
+**7b. Priority boost for visible cells**  
+`ThumbnailCell.task` already uses `.userInitiated` via `decodeQueue`. No change needed — newly visible cells naturally preempt background prefetch ops.
+
+**7c. Increase decode concurrency**  
+Raise `decodeQueue.maxConcurrentOperationCount` from 4 → 6. LibRaw dyld contention only occurs on first-ever decode session; subsequent calls are safe to parallelise more aggressively.
+
+**7d. Mem cache budget**  
+Raise `memCache.totalCostLimit` from 200 MB → 400 MB. Modern Macs have ≥16 GB RAM; 400 MB for ~2500 thumbnails at 160pt is safe.
+
+---
+
+## 8. Field Name Clarification (Remove Ratings)
+
+`resetSession()` in ContentView incorrectly uses `clipScore` and `aestheticScore` — these fields do not exist on `ImageRecord`. The correct names (verified from `ProcessingQueue.swift` lines 101–104) are:
+- `topiqTechnicalScore`
+- `topiqAestheticScore`  
+- `clipIQAScore`
+- `combinedQualityScore`
+
+`removeRatings()` implementation must use the correct names. `resetSession()` should also be fixed.
+
+---
+
+## 9. File Changes
 
 | File | Change |
 |------|--------|
-| `ContentView.swift` | 2-column split, detailRecord state, removeRatings(), runAIOnSelected(), compare sheet, keyboard handlers updated |
-| `GridView.swift` | Cmd+A, context menu (Remove Ratings, Run AI), onRate callback, Compare toolbar button |
-| `ThumbnailCell.swift` | Hover star overlay, onRate callback, double-click callback |
+| `ContentView.swift` | 2-column split, detailRecord state, removeRatings(), runAIOnSelected(), compare sheet, keyboard handlers updated, thumbnailSize AppStorage, prefetch call |
+| `GridView.swift` | Cmd+A, context menu (Remove Ratings, Run AI), onRate callback, Compare toolbar button, cellSize prop, size slider in toolbar |
+| `ThumbnailCell.swift` | Hover star overlay, onRate callback, double-click callback, cellSize-driven frame |
 | `ProcessingQueue.swift` | Add `process(imageIDs:onProgress:)` overload |
+| `ThumbnailCache.swift` | Add `prefetch(urls:size:)`, raise concurrency to 6, raise mem limit to 400 MB |
 
 No new files required.
 
 ---
 
-## 7. Out of Scope
+## 10. Out of Scope
 
 - Changing percentile normalisation logic
 - Per-image undo/redo
