@@ -1,6 +1,8 @@
 """AVA dataset loader: parse labels, compute per-image MOS, stratified sampling, downloader."""
 from __future__ import annotations
 from pathlib import Path
+import warnings
+import os
 import pandas as pd
 import numpy as np
 import requests
@@ -27,7 +29,11 @@ def compute_mos(df: pd.DataFrame) -> pd.DataFrame:
     weighted = (counts * np.arange(1, 11)).sum(axis=1)
     df = df.copy()
     df["mos"] = np.where(total > 0, weighted / total, np.nan)
+    n_before = len(df)
     df = df.dropna(subset=["mos"]).reset_index(drop=True)
+    n_dropped = n_before - len(df)
+    if n_dropped > 0:
+        warnings.warn(f"dropped {n_dropped} row(s) with zero total votes", RuntimeWarning)
     return df
 
 
@@ -47,22 +53,28 @@ def stratified_sample(df: pd.DataFrame, n: int, seed: int = 0) -> pd.DataFrame:
     per_star = max(1, n // 5)
     rng = np.random.default_rng(seed)
     parts = []
+    used_indices = pd.Index([])
     for star in range(1, 6):
         pool = df[df.gt_stars == star]
         k = min(per_star, len(pool))
         if k == 0:
             continue
-        parts.append(pool.sample(n=k, random_state=rng.integers(0, 2**32)))
-    sampled = pd.concat(parts).reset_index(drop=True)
+        chosen = pool.sample(n=k, random_state=rng.integers(0, 2**32))
+        used_indices = used_indices.append(chosen.index)
+        parts.append(chosen)
+    sampled = pd.concat(parts).reset_index(drop=True) if parts else pd.DataFrame(columns=df.columns)
     if len(sampled) < n:
-        extras = df.drop(sampled.index, errors="ignore").sample(
-            n=n - len(sampled), random_state=seed
-        )
-        sampled = pd.concat([sampled, extras]).reset_index(drop=True)
+        remaining = df.drop(used_indices, errors="ignore")
+        n_extra = min(n - len(sampled), len(remaining))
+        if n_extra > 0:
+            extras = remaining.sample(n=n_extra, random_state=seed)
+            sampled = pd.concat([sampled, extras]).reset_index(drop=True)
     return sampled.head(n).reset_index(drop=True)
 
 
 def _dp_challenge_url(image_id: int) -> str:
+    if image_id >= 1000:
+        raise NotImplementedError(f"bucket for image_id={image_id} not implemented; fix in Task 14")
     return f"https://images.dpchallenge.com/images_challenge/0-999/{image_id}.jpg"
 
 
@@ -83,11 +95,13 @@ def download_images(
             try:
                 resp = requests.get(_dp_challenge_url(image_id), timeout=timeout, headers=headers)
                 if resp.status_code == 200 and len(resp.content) > 1000:
-                    dest.write_bytes(resp.content)
+                    tmp = dest.with_suffix(".jpg.tmp")
+                    tmp.write_bytes(resp.content)
+                    os.replace(tmp, dest)
                     time.sleep(sleep)
                 else:
                     continue
-            except Exception:
+            except requests.RequestException:
                 continue
         if dest.exists():
             rows.append({**row.to_dict(), "local_path": str(dest)})

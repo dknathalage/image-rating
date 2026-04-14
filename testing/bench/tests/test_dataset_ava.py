@@ -1,6 +1,7 @@
 from pathlib import Path
 import numpy as np
-from bench.dataset_ava import parse_ava_txt, compute_mos, stratified_sample, mos_to_stars
+import pytest
+from bench.dataset_ava import parse_ava_txt, compute_mos, stratified_sample, mos_to_stars, _dp_challenge_url
 
 FIXTURE = Path(__file__).parent / "fixtures" / "mini_ava.txt"
 
@@ -34,3 +35,26 @@ def test_stratified_sample_balanced():
     sampled = stratified_sample(df, n=5, seed=0)
     assert len(sampled) == 5
     assert set(sampled.gt_stars.unique()) == {1, 2, 3, 4, 5}
+
+
+def test_compute_mos_drops_zero_vote_rows(tmp_path):
+    fixture = tmp_path / "zero.txt"
+    fixture.write_text("1 100 0 0 0 0 0 0 0 0 0 0 1 1 1\n2 200 1 1 1 1 1 1 1 1 1 1 1 1 10\n")
+    df = parse_ava_txt(fixture)
+    with pytest.warns(RuntimeWarning):
+        df = compute_mos(df)
+    assert len(df) == 1
+    assert df.image_id.iloc[0] == 200
+
+
+def test_stratified_sample_n_larger_than_df():
+    df = parse_ava_txt(FIXTURE)
+    df = compute_mos(df)
+    df = mos_to_stars(df)
+    result = stratified_sample(df, n=100, seed=0)
+    assert len(result) == 5
+
+
+def test_dp_challenge_url_out_of_range_raises():
+    with pytest.raises(NotImplementedError):
+        _dp_challenge_url(2000)
