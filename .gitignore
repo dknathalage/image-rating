@@ -30,6 +30,8 @@ DerivedData/
 
 # Test assets (large binary files, not committed)
 testing/
+!testing/bench/
+!testing/bench/**
 
 # Tooling
 .superpowers/
