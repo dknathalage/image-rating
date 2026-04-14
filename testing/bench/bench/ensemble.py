@@ -24,12 +24,14 @@ def combined_quality(
     """Weighted sum of three sub-scores. Weights renormalised to sum to 1.
     Mirrors Swift `combinedQuality` + `ProcessingQueue` weight-sum rescaling.
     """
-    wT, wA, wC = weights
-    s = wT + wA + wC
+    w_tech, w_aes, w_clip = weights
+    s = w_tech + w_aes + w_clip
     if s <= 0:
         raise ValueError("weights sum to zero")
-    wT, wA, wC = wT / s, wA / s, wC / s
-    return wT * tech + wA * aes + wC * clip
+    if any(w < 0 for w in (w_tech, w_aes, w_clip)):
+        raise ValueError("weights must be non-negative")
+    w_tech, w_aes, w_clip = w_tech / s, w_aes / s, w_clip / s
+    return w_tech * tech + w_aes * aes + w_clip * clip
 
 
 DEFAULT_BUCKET_EDGES = (0.20, 0.40, 0.60, 0.80)
@@ -37,9 +39,9 @@ DEFAULT_BUCKET_EDGES = (0.20, 0.40, 0.60, 0.80)
 
 @dataclass(frozen=True)
 class EnsembleParams:
-    wTech: float
-    wAes: float
-    wClip: float
+    w_tech: float
+    w_aes: float
+    w_clip: float
     strictness: float
     bucket_edges: tuple[float, float, float, float] = DEFAULT_BUCKET_EDGES
 
@@ -60,16 +62,18 @@ def percentile_stars(
     s = max(0.0, min(1.0, float(strictness)))
     gamma = 10.0 ** (2 * s - 1)
     order = np.argsort(scores, kind="stable")
-    result = np.empty(n, dtype=int)
+    ranks = np.empty(n, dtype=int)
+    ranks[order] = np.arange(n)
+    pct = ranks / n
+    # γ-curve: clamp pct==0 to 1e-9 to avoid 0^negative = inf
+    pct_safe = np.where(pct == 0, 1e-9, pct)
+    warped = pct_safe ** gamma
     e1, e2, e3, e4 = bucket_edges
-    for rank, original_idx in enumerate(order):
-        pct = rank / n
-        warped = (1e-9 if pct == 0 else pct) ** gamma
-        if   warped < e1: result[original_idx] = 1
-        elif warped < e2: result[original_idx] = 2
-        elif warped < e3: result[original_idx] = 3
-        elif warped < e4: result[original_idx] = 4
-        else:             result[original_idx] = 5
+    result = np.ones(n, dtype=int)
+    result[warped >= e1] = 2
+    result[warped >= e2] = 3
+    result[warped >= e3] = 4
+    result[warped >= e4] = 5
     return result
 
 
@@ -83,5 +87,5 @@ def stars_from_subscores(
     tn = minmax_normalize(tech)
     an = minmax_normalize(aes)
     cn = minmax_normalize(clip)
-    combined = combined_quality(tn, an, cn, (params.wTech, params.wAes, params.wClip))
+    combined = combined_quality(tn, an, cn, (params.w_tech, params.w_aes, params.w_clip))
     return percentile_stars(combined, params.strictness, params.bucket_edges)
