@@ -187,18 +187,42 @@ Regressions (Spearman worse than predecessor) marked with ⚠️.
 4. `./testing/bench/run.py eval --params candidate.json` — runs metric suite.
 5. If improved: promote candidate → `params.current.json`, bump version, commit.
 6. `./testing/bench/run.py leaderboard` — regenerates markdown.
-7. **CI gate (phase 2):** GitHub Actions workflow runs `eval` on PRs touching ensemble code or params against a cached AVA 2k sub-sample. PR blocked on Spearman regression.
+Regression tracking is manual via the leaderboard + git log. No CI gate.
 
-## Deliverables (implementation order)
+## Phased delivery
 
-1. `dataset_ava.py` — download + parse + cache AVA.
-2. `FocalScorer` Swift CLI target.
-3. Python bench harness: `score.py`, `ensemble.py`, `metrics.py`.
-4. `optimize.py` — Optuna param search.
-5. Model ablation sweep (runs optimizer over ensemble subsets).
-6. `leaderboard.py` + `LEADERBOARD.md` generation.
-7. `gen_defaults.py` + `FocalSettings+Generated.swift` bridge; xcodegen build phase.
-8. (Phase 2) CI workflow for regression gating.
+Build simplest end-to-end slice first. Validate locally before expanding.
+
+### Phase 0 — MVP smoke test (this plan)
+
+Goal: run defaults against a small AVA subset end-to-end, print metrics. Prove the pipeline works before investing in tuning infrastructure.
+
+1. `testing/bench/dataset_ava.py` — download + parse AVA; **500-image stratified subset** (not full 20k).
+2. `FocalScorer` Swift CLI target — decodes images (LibRaw) + runs the 3 `.mlmodelc` models, emits per-image sub-scores JSON. Reuses `RatingPipeline.loadBundledModels()`.
+3. `testing/bench/score.py` — invokes `FocalScorer`, caches JSON output.
+4. `testing/bench/ensemble.py` — mirrors Swift combining + percentile bucket logic (`combinedQuality` + `percentileStars`).
+5. `testing/bench/metrics.py` — Spearman, Kendall, MAE, off-by-one, exact-match, 5×5 confusion.
+6. `testing/bench/run.py` — one-command eval with default params; prints metrics to stdout.
+
+**Success criteria:** `run.py` runs locally without errors, reports Spearman for defaults `(wTech=0.4, wAes=0.4, wClip=0.2, strictness=0.5)`. Sanity baseline for whether the current ensemble correlates with AVA at all.
+
+### Phase 1 — optimizer + leaderboard
+
+- `testing/bench/optimize.py` — Optuna TPE param search over the tuning surface.
+- `testing/bench/leaderboard.py` + `LEADERBOARD.md` generation, committed + auto-regenerated.
+- Scale up AVA subset to full 20k eval split.
+
+### Phase 2 — ablation + model swaps
+
+- Ensemble membership sweep across the 7 subset configurations.
+- Candidate swaps (NIMA first, then MUSIQ / MANIQA / HyperIQA as needed).
+
+### Phase 3 — param bridge to shipping app
+
+- `params.current.json` as single source of truth.
+- `scripts/gen_defaults.py` writes `ImageRater/App/FocalSettings+Generated.swift`.
+- xcodegen build phase wires it in.
+- Extract hardcoded `bucketEdges` and `clipLogitScale` into `FocalSettings`.
 
 ## Open questions / deferred
 
