@@ -1,0 +1,93 @@
+"""Tests for run.py orchestration CLI."""
+from __future__ import annotations
+import json
+import os
+import stat
+import subprocess
+import sys
+from pathlib import Path
+import pytest
+
+import run
+
+
+def test_locate_scorer_bin_respects_env_var(tmp_path, monkeypatch):
+    fake = tmp_path / "FocalScorer"
+    fake.write_text("#!/bin/sh\necho fake\n")
+    fake.chmod(fake.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    monkeypatch.setenv("FOCAL_SCORER_BIN", str(fake))
+    found = run.locate_scorer_bin()
+    assert found == fake
+
+
+def test_locate_scorer_bin_raises_when_missing(tmp_path, monkeypatch):
+    monkeypatch.delenv("FOCAL_SCORER_BIN", raising=False)
+    monkeypatch.setenv("HOME", str(tmp_path))
+    # Also neutralise Path.home() caching via monkeypatch of Path.home
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+    with pytest.raises(FileNotFoundError) as exc_info:
+        run.locate_scorer_bin()
+    msg = str(exc_info.value)
+    assert "xcodebuild" in msg or "FocalScorer" in msg
+
+
+def test_git_sha_short_returns_nonempty_in_repo():
+    sha = run.git_sha_short()
+    assert isinstance(sha, str)
+    assert len(sha) > 0
+
+
+def test_git_sha_short_returns_nogit_when_git_missing(monkeypatch):
+    def raise_fnf(*args, **kwargs):
+        raise FileNotFoundError("git not found")
+    monkeypatch.setattr(subprocess, "check_output", raise_fnf)
+    assert run.git_sha_short() == "nogit"
+
+
+def test_load_save_params_roundtrip(tmp_path):
+    payload = {
+        "version": "v0.1.0",
+        "date": "2026-04-15",
+        "ensemble": ["tech", "aes", "clip"],
+        "notes": "test",
+        "params": {
+            "w_tech": 0.4,
+            "w_aes": 0.4,
+            "w_clip": 0.2,
+            "strictness": 0.5,
+            "bucket_edges": [0.2, 0.4, 0.6, 0.8],
+            "clip_logit_scale": 100.0,
+        },
+    }
+    p = tmp_path / "params.json"
+    run.save_params(p, payload)
+    loaded = run.load_params(p)
+    assert loaded == payload
+
+
+def test_main_dispatches_leaderboard(monkeypatch):
+    called = {}
+
+    def fake_leaderboard(args):
+        called["hit"] = True
+
+    monkeypatch.setattr(run, "cmd_leaderboard", fake_leaderboard)
+    monkeypatch.setattr(sys, "argv", ["run.py", "leaderboard"])
+    run.main()
+    assert called.get("hit") is True
+
+
+@pytest.mark.parametrize("subcmd,extra", [
+    ("download", []),
+    ("score", []),
+    ("eval", []),
+    ("optimize", []),
+    ("ablate", []),
+    ("leaderboard", []),
+])
+def test_main_argparse_accepts_all_subcommands(monkeypatch, subcmd, extra):
+    """Verify each subcommand parses without error; handlers are no-oped."""
+    for name in ("cmd_download", "cmd_score", "cmd_eval", "cmd_optimize", "cmd_ablate", "cmd_leaderboard"):
+        monkeypatch.setattr(run, name, lambda args: None)
+    monkeypatch.setattr(sys, "argv", ["run.py", subcmd, *extra])
+    run.main()
