@@ -32,6 +32,13 @@ targets:
         OTHER_LDFLAGS: "-lraw"
         HEADER_SEARCH_PATHS: "/opt/homebrew/include"
         LIBRARY_SEARCH_PATHS: "/opt/homebrew/lib"
+    preBuildScripts:
+      - name: Regenerate FocalSettings+Generated.swift
+        script: |
+          cd "$PROJECT_DIR"
+          /usr/bin/env python3 scripts/gen_defaults.py
+        outputFiles:
+          - $(SRCROOT)/ImageRater/App/FocalSettings+Generated.swift
     dependencies: []
   FocalTests:
     type: bundle.unit-test
@@ -47,6 +54,30 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
     dependencies:
       - target: Focal
+  FocalScorer:
+    type: tool
+    platform: macOS
+    sources:
+      - path: FocalScorer
+      - path: ImageRater/Pipeline/RatingPipeline.swift
+      - path: ImageRater/Pipeline/MUSIQPreprocessor.swift
+      - path: ImageRater/App/FocalSettings.swift
+      - path: ImageRater/App/FocalSettings+Generated.swift
+      - path: ImageRater/LibRaw/LibRawWrapper.swift
+      - path: ImageRater/LibRaw/LibRawBridge.h
+      - path: ImageRater/LibRaw/LibRawBridge.mm
+      - path: ImageRater/Models/RatingResult.swift
+      - path: ImageRater/MLModels/musiq-ava.mlpackage
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.focal.scorer
+        SWIFT_OBJC_BRIDGING_HEADER: "ImageRater/ImageRater-Bridging-Header.h"
+        OTHER_LDFLAGS: "-lraw"
+        HEADER_SEARCH_PATHS: "/opt/homebrew/include"
+        LIBRARY_SEARCH_PATHS: "/opt/homebrew/lib"
+        ARCHS: "arm64"
+        ONLY_ACTIVE_ARCH: YES
+        VALID_ARCHS: "arm64"
 schemes:
   Focal:
     build:
@@ -64,4 +95,10 @@ schemes:
     analyze:
       config: Debug
     archive:
+      config: Release
+  FocalScorer:
+    build:
+      targets:
+        FocalScorer: all
+    run:
       config: Release

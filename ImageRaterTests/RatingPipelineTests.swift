@@ -3,65 +3,41 @@ import XCTest
 
 final class RatingPipelineTests: XCTestCase {
 
-    // MARK: - Pixel buffer creation
+    // MARK: - bucketStars
 
-    func testPixelBufferCreationSucceeds() throws {
-        let ctx = CGContext(data: nil, width: 10, height: 10,
-                           bitsPerComponent: 8, bytesPerRow: 0,
-                           space: CGColorSpaceCreateDeviceRGB(),
-                           bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
-        let cgImage = ctx.makeImage()!
-        let pb = try RatingPipeline.cgImageToPixelBuffer(cgImage, width: 224, height: 224)
-        XCTAssertEqual(CVPixelBufferGetWidth(pb), 224)
-        XCTAssertEqual(CVPixelBufferGetHeight(pb), 224)
+    private let t: (Float, Float, Float, Float) = (4.465, 5.181, 5.634, 6.068)
+
+    func test_bucketStars_belowFirstThreshold() {
+        XCTAssertEqual(RatingPipeline.bucketStars(mos: 3.0, thresholds: t), 1)
+        XCTAssertEqual(RatingPipeline.bucketStars(mos: 4.464, thresholds: t), 1)
+    }
+    func test_bucketStars_boundaries() {
+        XCTAssertEqual(RatingPipeline.bucketStars(mos: 4.465, thresholds: t), 1)
+        XCTAssertEqual(RatingPipeline.bucketStars(mos: 4.466, thresholds: t), 2)
+        XCTAssertEqual(RatingPipeline.bucketStars(mos: 5.181, thresholds: t), 2)
+        XCTAssertEqual(RatingPipeline.bucketStars(mos: 5.182, thresholds: t), 3)
+        XCTAssertEqual(RatingPipeline.bucketStars(mos: 5.634, thresholds: t), 3)
+        XCTAssertEqual(RatingPipeline.bucketStars(mos: 5.635, thresholds: t), 4)
+        XCTAssertEqual(RatingPipeline.bucketStars(mos: 6.068, thresholds: t), 4)
+        XCTAssertEqual(RatingPipeline.bucketStars(mos: 6.069, thresholds: t), 5)
+    }
+    func test_bucketStars_extremes() {
+        XCTAssertEqual(RatingPipeline.bucketStars(mos: 1.0, thresholds: t), 1)
+        XCTAssertEqual(RatingPipeline.bucketStars(mos: 10.0, thresholds: t), 5)
     }
 
-    func testPixelBufferCreation384x384() throws {
-        let img = makeSolidColorCGImage(size: 512)
-        let buffer = try RatingPipeline.cgImageToPixelBuffer(img, width: 384, height: 384)
-        XCTAssertEqual(CVPixelBufferGetWidth(buffer), 384)
-        XCTAssertEqual(CVPixelBufferGetHeight(buffer), 384)
+    // MARK: - rate error paths
+
+    func test_rate_returns_unrated_on_nan() async throws {
+        let models = MockModel.make(scalar: Float.nan)
+        let cg = TestImage.solid(64, 64)
+        let r = await RatingPipeline.rate(image: cg, models: models)
+        guard case .unrated = r else { XCTFail("expected .unrated"); return }
     }
-
-    // MARK: - Combined quality weighting
-
-    func testCombinedQualityWeighting() {
-        let score = RatingPipeline.combinedQuality(
-            technical: 0.8, aesthetic: 0.6, semantic: 0.5,
-            weights: (technical: 0.4, aesthetic: 0.4, semantic: 0.2))
-        XCTAssertEqual(score, 0.4*0.8 + 0.4*0.6 + 0.2*0.5, accuracy: 0.001)
-    }
-
-    // MARK: - CLIP-IQA+ score
-
-    func testClipIQAGoodPhotoEmbeddingScoresAboveHalf() {
-        // Feeding the "Good photo" text embedding to clipIQAScore should strongly prefer "Good photo"
-        let score = RatingPipeline.clipIQAScore(embedding: CLIPTextEmbeddings.goodPhoto)
-        XCTAssertGreaterThan(score, 0.5, "Good photo embedding should score above 0.5")
-    }
-
-    func testClipIQABadPhotoEmbeddingScoresBelowHalf() {
-        // Feeding the "Bad photo" text embedding should prefer "Bad photo" → low score
-        let score = RatingPipeline.clipIQAScore(embedding: CLIPTextEmbeddings.badPhoto)
-        XCTAssertLessThan(score, 0.5, "Bad photo embedding should score below 0.5")
-    }
-
-    func testClipIQAScoreIsBoundedZeroToOne() {
-        // Softmax output must always be in [0,1]
-        let score = RatingPipeline.clipIQAScore(embedding: CLIPTextEmbeddings.goodPhoto)
-        XCTAssertGreaterThanOrEqual(score, 0.0)
-        XCTAssertLessThanOrEqual(score, 1.0)
-    }
-
-    // MARK: - Helpers
-
-    private func makeSolidColorCGImage(size: Int) -> CGImage {
-        let bmi = CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.noneSkipFirst.rawValue
-        let ctx = CGContext(data: nil, width: size, height: size, bitsPerComponent: 8,
-                            bytesPerRow: 4 * size, space: CGColorSpaceCreateDeviceRGB(),
-                            bitmapInfo: bmi)!
-        ctx.setFillColor(CGColor(gray: 0.5, alpha: 1))
-        ctx.fill(CGRect(x: 0, y: 0, width: size, height: size))
-        return ctx.makeImage()!
+    func test_rate_returns_unrated_on_inf() async throws {
+        let models = MockModel.make(scalar: Float.infinity)
+        let cg = TestImage.solid(64, 64)
+        let r = await RatingPipeline.rate(image: cg, models: models)
+        guard case .unrated = r else { XCTFail("expected .unrated"); return }
     }
 }

@@ -156,14 +156,9 @@ struct DetailView: View {
                     }
                 }
 
-                // AI SCORES — shown if ensemble has run
-                if record.combinedQualityScore > 0 {
-                    metaSectionDivider("AI Scores")
-                    ScoreBarView(label: "Technical", rawScore: record.topiqTechnicalScore)
-                    ScoreBarView(label: "Aesthetic", rawScore: record.topiqAestheticScore)
-                    ScoreBarView(label: "Semantic",  rawScore: record.clipIQAScore)
-                    Divider().padding(.vertical, 2)
-                    metaRow("Combined", String(format: "%.1f", record.combinedQualityScore * 10))
+                if record.musiqAesthetic > 0 {
+                    metaSectionDivider("AI Score")
+                    metaRow("Aesthetic", String(format: "%.2f", record.musiqAesthetic))
                     if let s = record.ratingStars, s.int16Value > 0 {
                         metaRow("AI stars", String(repeating: "★", count: Int(s.int16Value)))
                     }
@@ -287,27 +282,3 @@ struct DetailView: View {
     }
 }
 
-/// Progress bar showing a [0,1] raw score as a labelled [0,10] bar.
-private struct ScoreBarView: View {
-    let label: String
-    let rawScore: Float   // [0, 1] as stored in CoreData
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                Text(label).font(.caption2).foregroundStyle(.secondary)
-                Spacer()
-                Text(String(format: "%.1f", rawScore * 10))
-                    .font(.caption2.monospacedDigit())
-            }
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 2).fill(Color.secondary.opacity(0.2))
-                    RoundedRectangle(cornerRadius: 2).fill(Color.accentColor)
-                        .frame(width: geo.size.width * CGFloat(min(rawScore, 1)))
-                }
-            }
-            .frame(height: 4)
-        }
-    }
-}

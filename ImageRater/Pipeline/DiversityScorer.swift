@@ -11,7 +11,7 @@ enum DiversityScorer {
     struct MMRItem {
         let originalIndex: Int
         let clusterRank: Int       // 1-based; 1 = selected first (best quality + diversity)
-        let diversityFactor: Float // multiplied against combinedQualityScore
+        let diversityFactor: Float // multiplied against MUSIQ aesthetic score
     }
 
     // MARK: - Cosine similarity
