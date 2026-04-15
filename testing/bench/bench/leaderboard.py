@@ -7,6 +7,8 @@ import math
 
 def regenerate_leaderboard(results_dir: Path, md_path: Path) -> None:
     rows: list[dict] = []
+    if not results_dir.exists():
+        results_dir.mkdir(parents=True, exist_ok=True)
     for version_dir in sorted(results_dir.iterdir()):
         if not version_dir.is_dir():
             continue

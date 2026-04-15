@@ -29,9 +29,8 @@ DerivedData/
 .swiftpm/
 
 # Test assets (large binary files, not committed)
-testing/
+testing/*
 !testing/bench/
-!testing/bench/**
 
 # Tooling
 .superpowers/

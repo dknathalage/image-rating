@@ -40,3 +40,12 @@ def test_leaderboard_empty_results(tmp_path):
     assert "# Rating Ensemble Leaderboard" in text
     # Table header present even with no rows.
     assert "| Version |" in text
+
+
+def test_leaderboard_missing_results_dir(tmp_path):
+    # Fresh clone: results/ doesn't exist yet. Should create it, not crash.
+    results_dir = tmp_path / "results"
+    md_path = tmp_path / "LEADERBOARD.md"
+    regenerate_leaderboard(results_dir, md_path)
+    assert results_dir.is_dir()
+    assert md_path.exists()
