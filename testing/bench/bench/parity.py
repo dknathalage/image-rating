@@ -1,15 +1,15 @@
 """Python reference vs Swift/CoreML parity helpers."""
 from __future__ import annotations
 from pathlib import Path
-import numpy as np
 import pandas as pd
-import torch
-import pyiqa
 from scipy.stats import spearmanr
 
 
 def pyiqa_scores(image_dir: Path, limit: int = 100) -> pd.DataFrame:
     """Run pyiqa MUSIQ-AVA on first `limit` jpgs, return [filename, pyiqa_score]."""
+    import pyiqa
+    import torch
+
     metric = pyiqa.create_metric("musiq-ava", device="cpu", as_loss=False)
     metric.eval()
     files = sorted(image_dir.glob("*.jpg"))[:limit]
