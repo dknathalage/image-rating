@@ -87,4 +87,35 @@ final class MUSIQPreprocessorTests: XCTestCase {
             XCTAssertEqual(a, b, accuracy: 0.0)  // integer indices — exact
         }
     }
+
+    func test_patchTensor_500x400_matches_pyiqa_reference() throws {
+        let src = loadTensor("img_500x400")
+        let expected = loadTensor("patch_tensor_500x400")
+
+        let tensor = try MUSIQPreprocessor.patchTensorFromNormalizedPixels(
+            pixels: src, h: 500, w: 400, channels: 3
+        )
+        XCTAssertEqual(tensor.shape.map { $0.intValue }, [1, 193, 3075])
+        XCTAssertEqual(tensor.dataType, .float32)
+
+        let ptr = tensor.dataPointer.bindMemory(to: Float.self, capacity: tensor.count)
+        var maxDelta: Float = 0
+        for i in 0..<expected.count {
+            maxDelta = max(maxDelta, abs(ptr[i] - expected[i]))
+        }
+        XCTAssertLessThan(maxDelta, 1e-2, "Max |Δ| = \(maxDelta)")
+    }
+
+    func test_patchTensor_image_too_small_throws() {
+        let src = [Float](repeating: 0.5, count: 3 * 20 * 30)
+        XCTAssertThrowsError(
+            try MUSIQPreprocessor.patchTensorFromNormalizedPixels(
+                pixels: src, h: 20, w: 30, channels: 3
+            )
+        ) { err in
+            guard case RatingError.imageTooSmall = err else {
+                return XCTFail("Expected .imageTooSmall, got \(err)")
+            }
+        }
+    }
 }

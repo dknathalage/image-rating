@@ -1,4 +1,5 @@
 // ImageRater/Pipeline/MUSIQPreprocessor.swift
+import CoreML
 import Foundation
 
 enum MUSIQPreprocessor {
@@ -157,5 +158,55 @@ enum MUSIQPreprocessor {
             out[i] = (i * gridSize) / count
         }
         return out
+    }
+
+    // MARK: - Orchestrator
+
+    static let scales: [Int] = [224, 384]
+    static let patchSize: Int = 32
+    static let gridSize: Int = 10
+    static let seqLen: Int = 193
+    static let rowDim: Int = 32 * 32 * 3 + 3   // 3075
+
+    /// Build patch tensor from normalized planar RGB pixels in `[-1, 1]`.
+    /// Input layout: channel-major `[C, H, W]`.
+    static func patchTensorFromNormalizedPixels(
+        pixels: [Float], h: Int, w: Int, channels: Int
+    ) throws -> MLMultiArray {
+        guard max(h, w) >= patchSize else { throw RatingError.imageTooSmall }
+
+        let tensor = try MLMultiArray(shape: [1, NSNumber(value: seqLen), NSNumber(value: rowDim)],
+                                      dataType: .float32)
+        let tPtr = tensor.dataPointer.bindMemory(to: Float.self, capacity: tensor.count)
+        tPtr.initialize(repeating: 0, count: tensor.count)
+
+        var rowOffset = 0
+        for (scaleId, scale) in scales.enumerated() {
+            let (resized, rh, rw) = aspectResize(
+                pixels: pixels, h: h, w: w, channels: channels, longerSide: scale
+            )
+            let (patches, countH, countW) = unfoldPatches(
+                pixels: resized, h: rh, w: rw, channels: channels, patch: patchSize
+            )
+            let positions = hashSpatialPositions(countH: countH, countW: countW, gridSize: gridSize)
+            let activeN = countH * countW
+            let side = (scale + patchSize - 1) / patchSize
+            let maxSeqLen = side * side
+
+            let patchDim = channels * patchSize * patchSize
+            patches.withUnsafeBufferPointer { patchesBuf in
+                for i in 0..<activeN {
+                    let dst = tPtr + (rowOffset + i) * rowDim
+                    let patchSrc = patchesBuf.baseAddress! + i * patchDim
+                    dst.update(from: patchSrc, count: patchDim)
+                    dst[patchDim] = positions[i]
+                    dst[patchDim + 1] = Float(scaleId)
+                    dst[patchDim + 2] = 1.0
+                }
+            }
+            rowOffset += maxSeqLen
+        }
+        assert(rowOffset == seqLen, "rowOffset \(rowOffset) != seqLen \(seqLen)")
+        return tensor
     }
 }

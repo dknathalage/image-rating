@@ -11,6 +11,7 @@ enum RatingError: Error {
     case pixelBufferCreationFailed
     case modelNotFound(String)
     case inferenceOutputMismatch
+    case imageTooSmall
 }
 
 enum RatingPipeline {
