@@ -1,5 +1,7 @@
 // ImageRater/Pipeline/MUSIQPreprocessor.swift
 import CoreML
+import CoreGraphics
+import CoreVideo
 import Foundation
 
 enum MUSIQPreprocessor {
@@ -209,5 +211,58 @@ enum MUSIQPreprocessor {
         }
         precondition(rowOffset == seqLen, "rowOffset \(rowOffset) != seqLen \(seqLen)")
         return tensor
+    }
+
+    // MARK: - CGImage entry point
+
+    /// Read CGImage → planar RGB normalized to [-1, 1] → patch tensor.
+    /// Uses CVPixelBuffer BGRA straight-copy; no implicit gamma.
+    static func patchTensor(cgImage: CGImage) throws -> MLMultiArray {
+        let h = cgImage.height, w = cgImage.width
+        let pixels = try readPlanarRGB(cgImage: cgImage)
+        return try patchTensor(pixels: pixels, h: h, w: w, channels: 3)
+    }
+
+    private static func readPlanarRGB(cgImage: CGImage) throws -> [Float] {
+        let h = cgImage.height, w = cgImage.width
+        var pb: CVPixelBuffer?
+        let attrs = [kCVPixelBufferCGImageCompatibilityKey: true,
+                     kCVPixelBufferCGBitmapContextCompatibilityKey: true] as CFDictionary
+        guard CVPixelBufferCreate(kCFAllocatorDefault, w, h, kCVPixelFormatType_32BGRA,
+                                  attrs, &pb) == kCVReturnSuccess,
+              let buf = pb else {
+            throw RatingError.pixelBufferCreationFailed
+        }
+        CVPixelBufferLockBaseAddress(buf, [])
+        defer { CVPixelBufferUnlockBaseAddress(buf, []) }
+        guard let sRGB = CGColorSpace(name: CGColorSpace.sRGB),
+              let ctx = CGContext(
+                data: CVPixelBufferGetBaseAddress(buf),
+                width: w, height: h, bitsPerComponent: 8,
+                bytesPerRow: CVPixelBufferGetBytesPerRow(buf),
+                space: sRGB,
+                bitmapInfo: CGBitmapInfo.byteOrder32Little.rawValue |
+                            CGImageAlphaInfo.noneSkipFirst.rawValue
+              ) else {
+            throw RatingError.pixelBufferCreationFailed
+        }
+        ctx.draw(cgImage, in: CGRect(x: 0, y: 0, width: w, height: h))
+
+        let rowBytes = CVPixelBufferGetBytesPerRow(buf)
+        let base = CVPixelBufferGetBaseAddress(buf)!.assumingMemoryBound(to: UInt8.self)
+        var out = [Float](repeating: 0, count: 3 * h * w)
+        let rSlice = h * w * 0, gSlice = h * w * 1, bSlice = h * w * 2
+        for y in 0..<h {
+            let row = base + y * rowBytes
+            for x in 0..<w {
+                let px = row + x * 4
+                // BGRA little-endian: px[0]=B, px[1]=G, px[2]=R
+                let b = Float(px[0]) / 255, g = Float(px[1]) / 255, r = Float(px[2]) / 255
+                out[rSlice + y * w + x] = (r - 0.5) * 2
+                out[gSlice + y * w + x] = (g - 0.5) * 2
+                out[bSlice + y * w + x] = (b - 0.5) * 2
+            }
+        }
+        return out
     }
 }

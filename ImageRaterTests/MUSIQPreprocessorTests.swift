@@ -118,4 +118,18 @@ final class MUSIQPreprocessorTests: XCTestCase {
             }
         }
     }
+
+    func test_patchTensor_cgImage_wraps_normalization() throws {
+        let ctx = CGContext(
+            data: nil, width: 64, height: 64,
+            bitsPerComponent: 8, bytesPerRow: 64 * 4,
+            space: CGColorSpace(name: CGColorSpace.sRGB)!,
+            bitmapInfo: CGBitmapInfo.byteOrder32Little.rawValue | CGImageAlphaInfo.noneSkipFirst.rawValue
+        )!
+        ctx.setFillColor(CGColor(red: 0.5, green: 0.3, blue: 0.7, alpha: 1))
+        ctx.fill(CGRect(x: 0, y: 0, width: 64, height: 64))
+        let cg = ctx.makeImage()!
+        let tensor = try MUSIQPreprocessor.patchTensor(cgImage: cg)
+        XCTAssertEqual(tensor.shape.map { $0.intValue }, [1, 193, 3075])
+    }
 }
