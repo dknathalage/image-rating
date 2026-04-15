@@ -2,7 +2,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
 import numpy as np
-import optuna
 import pandas as pd
 from .metrics import compute_metrics, MetricsResult
 
@@ -45,6 +44,8 @@ def optimize_thresholds(
     n_trials: int = 500,
     seed: int = 0,
 ) -> OptimizeResult:
+    import optuna
+
     df = scores_df.merge(labels_df, on="filename", how="inner")
     s = df["musiqAesthetic"].to_numpy()
     y = df["gt_stars"].to_numpy().astype(int)
