@@ -1,0 +1,65 @@
+// ImageRaterTests/MUSIQPreprocessorTests.swift
+import XCTest
+@testable import Focal
+
+final class MUSIQPreprocessorTests: XCTestCase {
+
+    private func fixturesURL() -> URL {
+        // Resources from ImageRaterTests/Fixtures/ are copied flat into
+        // the xctest bundle's Resources directory by Xcode.
+        Bundle(for: MUSIQPreprocessorTests.self).resourceURL!
+    }
+
+    private func loadTensor(_ name: String) -> [Float] {
+        let url = fixturesURL().appendingPathComponent("\(name).f32")
+        let data = try! Data(contentsOf: url)
+        return data.withUnsafeBytes { ptr in
+            Array(ptr.bindMemory(to: Float.self))
+        }
+    }
+
+    private func loadShape(_ name: String, ext: String = "shape") -> [Int] {
+        let url = fixturesURL().appendingPathComponent("\(name).\(ext)")
+        let s = try! String(contentsOf: url, encoding: .utf8)
+        return s.trimmingCharacters(in: .whitespacesAndNewlines)
+                .split(separator: ",").map { Int($0)! }
+    }
+
+    func test_resize_1200x800_longerSide_224() {
+        let src = loadTensor("img_1200x800")                    // [1, 3, 1200, 800]
+        let expected = loadTensor("resize_1200x800_224")
+        let dims = loadShape("resize_1200x800_224", ext: "dims") // [rh, rw]
+        // Fixture writes [224, 149] (rh first): H=1200 is longer side → rh=224
+        XCTAssertEqual(dims, [224, 149])
+
+        let (resized, rh, rw) = MUSIQPreprocessor.aspectResize(
+            pixels: src, h: 1200, w: 800, channels: 3, longerSide: 224
+        )
+        XCTAssertEqual(rh, 224)
+        XCTAssertEqual(rw, 149)
+        XCTAssertEqual(resized.count, expected.count)
+        // Per-pixel tolerance: bicubic in fp32 drifts ≤ 1e-3 between backends.
+        var maxDelta: Float = 0
+        for (a, b) in zip(resized, expected) {
+            maxDelta = max(maxDelta, abs(a - b))
+        }
+        XCTAssertLessThan(maxDelta, 5e-3, "Max |Δ| = \(maxDelta)")
+    }
+
+    func test_resize_800x1200_longerSide_384() {
+        let src = loadTensor("img_800x1200")
+        let expected = loadTensor("resize_800x1200_384")
+        let dims = loadShape("resize_800x1200_384", ext: "dims")
+        // Fixture writes [256, 384] (rh first): W=1200 is longer side → rw=384
+        XCTAssertEqual(dims, [256, 384])
+
+        let (resized, rh, rw) = MUSIQPreprocessor.aspectResize(
+            pixels: src, h: 800, w: 1200, channels: 3, longerSide: 384
+        )
+        XCTAssertEqual(rh, 256)
+        XCTAssertEqual(rw, 384)
+        var maxDelta: Float = 0
+        for (a, b) in zip(resized, expected) { maxDelta = max(maxDelta, abs(a - b)) }
+        XCTAssertLessThan(maxDelta, 5e-3)
+    }
+}
