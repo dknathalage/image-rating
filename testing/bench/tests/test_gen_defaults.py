@@ -12,7 +12,7 @@ OUT = REPO_ROOT / "ImageRater" / "App" / "FocalSettings+Generated.swift"
 
 
 def test_gen_defaults_emits_expected_numeric_values():
-    """Generator reads params.current.json and emits Swift file with numeric values."""
+    """Generator reads params.current.json and emits Swift file with numeric thresholds."""
     assert SCRIPT.exists(), f"missing {SCRIPT}"
     assert PARAMS.exists(), f"missing {PARAMS}"
 
@@ -26,27 +26,19 @@ def test_gen_defaults_emits_expected_numeric_values():
     text = OUT.read_text()
 
     payload = json.loads(PARAMS.read_text())
-    p = payload["params"]
-    edges = p["bucket_edges"]
+    thresholds = payload["thresholds"]
 
-    # Structural sanity
     assert "extension FocalSettings" in text
     assert "import Foundation" in text
     assert text.count("{") == text.count("}"), "braces unbalanced"
 
-    # Version
-    assert f'static let generatedVersion: String               = "{payload["version"]}"' in text
+    assert f'static let generatedVersion: String          = "{payload["version"]}"' in text
+    assert f'static let generatedModel: String            = "{payload["model"]}"' in text
 
-    # Numeric constants — check the rendered Double literals
-    def _has_double(name: str, value: float) -> bool:
-        return f"static let {name}: Double" in text and repr(float(value)) in text
+    def _has_float(name: str, value: float) -> bool:
+        return f"static let {name}: Float" in text and repr(float(value)) in text
 
-    assert _has_double("generatedWeightTechnical", p["w_tech"])
-    assert _has_double("generatedWeightAesthetic", p["w_aes"])
-    assert _has_double("generatedWeightClip", p["w_clip"])
-    assert _has_double("generatedCullStrictness", p["strictness"])
-    assert _has_double("generatedBucketEdge1", edges[0])
-    assert _has_double("generatedBucketEdge2", edges[1])
-    assert _has_double("generatedBucketEdge3", edges[2])
-    assert _has_double("generatedBucketEdge4", edges[3])
-    assert _has_double("generatedClipLogitScale", p["clip_logit_scale"])
+    assert _has_float("generatedMUSIQThreshold1", thresholds[0])
+    assert _has_float("generatedMUSIQThreshold2", thresholds[1])
+    assert _has_float("generatedMUSIQThreshold3", thresholds[2])
+    assert _has_float("generatedMUSIQThreshold4", thresholds[3])
