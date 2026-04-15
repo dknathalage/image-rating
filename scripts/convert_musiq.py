@@ -1,8 +1,9 @@
 #!/usr/bin/env python3.12
 """Convert pyiqa MUSIQ-AVA → CoreML .mlpackage with static patch-tensor input.
 
-Output shape: [1, 193, 3075] (49 patches for scale 224 + 144 patches for
-scale 384, each row = 3072 pixel values + [spatial_pos, scale_id, mask]).
+Output shape: [1, 705, 3075] (49 patches for scale 224 + 144 for scale 384 +
+512 for original-res (capped, zero-padded if fewer), each row = 3072 pixel
+values + [spatial_pos, scale_id, mask]).
 
 Writes: ImageRater/MLModels/musiq-ava.mlpackage (committed into Xcode project).
 """
@@ -60,7 +61,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 OUT_PATH = REPO_ROOT / "ImageRater" / "MLModels" / "musiq-ava.mlpackage"
 
 # Static shape constants matching the Swift preprocessor.
-SEQ_LEN = 49 + 144               # scales [224, 384] → max_seq_len (7²) + (12²)
+SEQ_LEN = 49 + 144 + 512          # scales [224, 384, original-res], original-res capped at 512
 PATCH_DIM = 32 * 32 * 3          # 3072
 ROW_DIM = PATCH_DIM + 3          # 3075 (+ spatial_pos, scale_id, mask)
 
@@ -124,7 +125,8 @@ def main():
     dummy = torch.randn(1, SEQ_LEN, ROW_DIM, dtype=torch.float32)
     # Ensure scale_id plausible (0/1) and mask=1 to exercise full graph.
     dummy[:, :49, -2] = 0.0
-    dummy[:, 49:, -2] = 1.0
+    dummy[:, 49:193, -2] = 1.0
+    dummy[:, 193:, -2] = 2.0
     dummy[:, :, -1] = 1.0
 
     print("Tracing...", flush=True)
