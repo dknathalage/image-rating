@@ -136,7 +136,7 @@ enum MUSIQPreprocessor {
     /// F.interpolate(mode='nearest').
     ///
     /// Nearest-interp formula PyTorch uses (align_corners irrelevant for nearest):
-    /// index[i] = floor(i * in_size / out_size) for out_size ≥ in_size.
+    /// index[i] = floor(i * in_size / out_size).
     /// For grid=10, count=7: indices = [0, 1, 2, 4, 5, 7, 8] (from floor(i * 10 / 7)).
     static func hashSpatialPositions(countH: Int, countW: Int, gridSize: Int) -> [Float] {
         let posH = nearestInterp(count: countH, gridSize: gridSize)
