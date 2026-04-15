@@ -4,11 +4,10 @@ Emits binary float32 little-endian files (and .txt shape/label sidecars) into
 ImageRaterTests/Fixtures/musiq_reference/. Committed to repo so Swift tests run
 without torch."""
 from __future__ import annotations
-import sys, struct
+import sys
 from pathlib import Path
 import numpy as np
 import torch
-import torch.nn.functional as F
 from pyiqa.data.multiscale_trans_util import (
     extract_image_patches,
     get_hashed_spatial_pos_emb_index,
@@ -18,6 +17,11 @@ from pyiqa.data.multiscale_trans_util import (
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 OUT_DIR = REPO_ROOT / "ImageRaterTests" / "Fixtures" / "musiq_reference"
+
+PATCH_SIZE = 32
+HASH_GRID = 10
+MUSIQ_SCALES = [224, 384]
+NUM_CHANNELS = 3
 
 
 def write_tensor(path: Path, t: torch.Tensor) -> None:
@@ -34,7 +38,6 @@ def make_image(h: int, w: int, seed: int = 0) -> torch.Tensor:
 
 
 def main():
-    torch.manual_seed(0)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     # Fixture 1: resize 1200x800 longer=224 -> (149, 224)
@@ -53,24 +56,24 @@ def main():
 
     # Fixture 3: unfold 3x64x64 ranked-values input -> 4 patches of 3072.
     g = torch.Generator().manual_seed(42)
-    img_64 = torch.rand(1, 3, 64, 64, generator=g)
+    img_64 = torch.rand(1, NUM_CHANNELS, 64, 64, generator=g)
     write_tensor(OUT_DIR / "img_64x64.f32", img_64)
-    patches = extract_image_patches(img_64, 32, 32).transpose(1, 2)  # [1, 4, 3072]
+    patches = extract_image_patches(img_64, PATCH_SIZE, PATCH_SIZE).transpose(1, 2)  # [1, 4, 3072]
     write_tensor(OUT_DIR / "unfold_64x64.f32", patches)
 
     # Fixture 4: hash spatial positions for (count_h=7, count_w=5, grid=10)
-    hsp_7x5 = get_hashed_spatial_pos_emb_index(10, 7, 5)  # [1, 35]
+    hsp_7x5 = get_hashed_spatial_pos_emb_index(HASH_GRID, 7, 5)  # [1, 35]
     write_tensor(OUT_DIR / "hsp_7x5.f32", hsp_7x5)
 
     # Fixture 5: full multiscale patch tensor for 500x400 input, scales [224, 384]
     img_multi = make_image(500, 400, seed=3)
     write_tensor(OUT_DIR / "img_500x400.f32", img_multi)
     outs = []
-    for scale_id, longer in enumerate([224, 384]):
+    for scale_id, longer in enumerate(MUSIQ_SCALES):
         resized, rh, rw = resize_preserve_aspect_ratio(img_multi, 500, 400, longer)
-        max_seq_len = int(np.ceil(longer / 32) ** 2)
+        max_seq_len = int(np.ceil(longer / PATCH_SIZE) ** 2)
         out = _extract_patches_and_positions_from_image(
-            resized, 32, 32, 10, 1, rh, rw, 3, scale_id, max_seq_len,
+            resized, PATCH_SIZE, PATCH_SIZE, HASH_GRID, 1, rh, rw, NUM_CHANNELS, scale_id, max_seq_len,
         )
         outs.append(out)
     full = torch.cat(outs, dim=-1).transpose(1, 2)  # [1, 193, 3075]
