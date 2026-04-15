@@ -1,7 +1,6 @@
 """Tests for run.py orchestration CLI."""
 from __future__ import annotations
 import json
-import os
 import stat
 import subprocess
 import sys
@@ -23,7 +22,6 @@ def test_locate_scorer_bin_respects_env_var(tmp_path, monkeypatch):
 def test_locate_scorer_bin_raises_when_missing(tmp_path, monkeypatch):
     monkeypatch.delenv("FOCAL_SCORER_BIN", raising=False)
     monkeypatch.setenv("HOME", str(tmp_path))
-    # Also neutralise Path.home() caching via monkeypatch of Path.home
     monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
     with pytest.raises(FileNotFoundError) as exc_info:
         run.locate_scorer_bin()
@@ -46,23 +44,33 @@ def test_git_sha_short_returns_nogit_when_git_missing(monkeypatch):
 
 def test_load_save_params_roundtrip(tmp_path):
     payload = {
-        "version": "v0.1.0",
+        "version": "v0.4.0",
         "date": "2026-04-15",
-        "ensemble": ["tech", "aes", "clip"],
+        "model": "musiq-ava",
         "notes": "test",
-        "params": {
-            "w_tech": 0.4,
-            "w_aes": 0.4,
-            "w_clip": 0.2,
-            "strictness": 0.5,
-            "bucket_edges": [0.2, 0.4, 0.6, 0.8],
-            "clip_logit_scale": 100.0,
-        },
+        "thresholds": [4.5, 5.2, 5.6, 6.1],
     }
     p = tmp_path / "params.json"
     run.save_params(p, payload)
     loaded = run.load_params(p)
     assert loaded == payload
+
+
+def test_params_current_json_is_v040():
+    payload = json.loads((Path(__file__).parents[1] / "params.current.json").read_text())
+    assert payload["version"] == "v0.4.0"
+    assert payload["model"] == "musiq-ava"
+    assert len(payload["thresholds"]) == 4
+    assert all(isinstance(x, (int, float)) for x in payload["thresholds"])
+    assert "params" not in payload
+    assert "bucket_edges" not in payload
+
+
+def test_argparse_drops_ablate_subcommand():
+    import argparse  # noqa: F401
+    p = run._build_parser()
+    with pytest.raises(SystemExit):
+        p.parse_args(["ablate"])
 
 
 def test_main_dispatches_leaderboard(monkeypatch):
@@ -82,12 +90,11 @@ def test_main_dispatches_leaderboard(monkeypatch):
     ("score", []),
     ("eval", []),
     ("optimize", []),
-    ("ablate", []),
     ("leaderboard", []),
 ])
 def test_main_argparse_accepts_all_subcommands(monkeypatch, subcmd, extra):
     """Verify each subcommand parses without error; handlers are no-oped."""
-    for name in ("cmd_download", "cmd_score", "cmd_eval", "cmd_optimize", "cmd_ablate", "cmd_leaderboard"):
+    for name in ("cmd_download", "cmd_score", "cmd_eval", "cmd_optimize", "cmd_leaderboard"):
         monkeypatch.setattr(run, name, lambda args: None)
     monkeypatch.setattr(sys, "argv", ["run.py", subcmd, *extra])
     run.main()

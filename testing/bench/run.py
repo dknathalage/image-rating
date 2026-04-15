@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Focal bench orchestration: download / score / eval / optimize / ablate / leaderboard."""
+"""Focal bench orchestration: download / score / eval / optimize / leaderboard."""
 from __future__ import annotations
 import argparse
 import json
@@ -8,7 +8,6 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 from bench.dataset_ava import (
@@ -20,24 +19,15 @@ from bench.dataset_ava import (
 )
 from bench.score import score_with_cache
 from bench.musiq_scorer import score_musiq_with_cache
-from bench.clip_iqa import clip_iqa_score, load_prompt_embeddings
-from bench.ensemble import EnsembleParams, stars_from_subscores
 from bench.metrics import compute_metrics
-from bench.optimize import (
-    optimize_params,
-    SearchSpace,
-    result_to_params_dict,
-    result_to_metrics_dict,
-)
-from bench.ablation import run_ablation
 from bench.leaderboard import regenerate_leaderboard
+from bench.single_model import bucket_stars, optimize_thresholds, stars_from_thresholds
 
 
-BENCH_DIR    = Path(__file__).parent
-DATA_DIR     = BENCH_DIR / "data"
-RESULTS_DIR  = BENCH_DIR / "results"
-CACHE_DIR    = BENCH_DIR / ".cache"
-PROMPTS_PATH = BENCH_DIR / "bench" / "prompt_embeddings.json"
+BENCH_DIR   = Path(__file__).parent
+DATA_DIR    = BENCH_DIR / "data"
+RESULTS_DIR = BENCH_DIR / "results"
+CACHE_DIR   = BENCH_DIR / ".cache"
 
 
 def git_sha_short() -> str:
@@ -94,29 +84,15 @@ def version_with_sha(version: str) -> str:
     return f"{version}@{git_sha_short()}"
 
 
-def _scores_with_clip_scalar(scores_df: pd.DataFrame, logit_scale: float) -> pd.DataFrame:
-    prompts = load_prompt_embeddings(PROMPTS_PATH)
-    scores_df = scores_df.copy()
-    scores_df["clipIQA"] = scores_df["clipEmbedding"].apply(
-        lambda e: clip_iqa_score(np.asarray(e, dtype=np.float32), prompts, logit_scale)
-    )
-    return scores_df
-
-
 def _load_dataset() -> tuple[pd.DataFrame, pd.DataFrame]:
     labels = pd.read_csv(DATA_DIR / "ava" / "labels.csv")
     bin_ = locate_scorer_bin()
     scores = score_with_cache(bin_, DATA_DIR / "ava" / "images", CACHE_DIR)
-
-    # Aesthetic model swap: MUSIQ-AVA replaces TOPIQ-aesthetic (rho 0.78 vs 0.13).
-    # Set FOCAL_BENCH_AESTHETIC=topiq to retain legacy TOPIQ-aesthetic.
-    if os.environ.get("FOCAL_BENCH_AESTHETIC", "musiq").lower() == "musiq":
-        musiq = score_musiq_with_cache(DATA_DIR / "ava" / "images", CACHE_DIR)
-        scores = scores.drop(columns=["topiqAesthetic"]).merge(
-            musiq.rename(columns={"musiqAesthetic": "topiqAesthetic"}),
-            on="filename",
-            how="inner",
-        )
+    # Task 10 runs before Task 11: FocalScorer still emits legacy columns here.
+    # Override with Python pyiqa MUSIQ as authoritative source for benches.
+    # Task 11 rewrites FocalScorer to emit musiqAesthetic; simplify then.
+    musiq = score_musiq_with_cache(DATA_DIR / "ava" / "images", CACHE_DIR)
+    scores = scores[["filename"]].merge(musiq, on="filename", how="inner")
     return scores, labels
 
 
@@ -150,83 +126,44 @@ def cmd_score(args):
 def cmd_eval(args):
     scores, labels = _load_dataset()
     payload = load_params(Path(args.params))
-    p = payload["params"]
-    scores = _scores_with_clip_scalar(scores, p["clip_logit_scale"])
+    thresholds = tuple(payload["thresholds"])
     df = scores.merge(labels, on="filename", how="inner")
-    params = EnsembleParams(
-        w_tech=p["w_tech"],
-        w_aes=p["w_aes"],
-        w_clip=p["w_clip"],
-        strictness=p["strictness"],
-        bucket_edges=tuple(p["bucket_edges"]),
-    )
-    pred = stars_from_subscores(
-        df["topiqTechnical"].to_numpy(),
-        df["topiqAesthetic"].to_numpy(),
-        df["clipIQA"].to_numpy(),
-        params,
-    )
+    pred = stars_from_thresholds(df["musiqAesthetic"].to_numpy(), thresholds)
     m = compute_metrics(df["gt_stars"].to_numpy(), pred)
 
     version = version_with_sha(payload["version"])
     out_dir = RESULTS_DIR / version
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "metrics.json").write_text(json.dumps({"val": m.to_dict()}, indent=2))
-    (out_dir / "params.json").write_text(json.dumps(
-        {**payload, "date": _today()}, indent=2
-    ))
-
+    (out_dir / "params.json").write_text(json.dumps({**payload, "date": _today()}, indent=2))
     df_out = df.copy()
     df_out["pred_stars"] = pred
-    df_out[[
-        "filename", "gt_stars", "pred_stars",
-        "topiqTechnical", "topiqAesthetic", "clipIQA",
-    ]].to_parquet(out_dir / "scores.parquet")
-
+    df_out[["filename", "gt_stars", "pred_stars", "musiqAesthetic"]].to_parquet(
+        out_dir / "scores.parquet"
+    )
     print(f"Spearman={m.spearman:.3f}  MAE={m.mae:.2f}  ±1={m.off_by_one*100:.0f}%")
     print(f"results → {out_dir}")
 
 
 def cmd_optimize(args):
     scores, labels = _load_dataset()
-    current = load_params(BENCH_DIR / "params.current.json")
-    clip_logit_scale = current["params"]["clip_logit_scale"]
-    scores = _scores_with_clip_scalar(scores, clip_logit_scale)
-    res = optimize_params(scores, labels, SearchSpace(), n_trials=args.trials, seed=0)
-
-    date = _today()
-    params_payload = result_to_params_dict(
-        res,
-        ensemble=["tech", "aes", "clip"],
-        notes=f"optuna TPE {args.trials} trials",
-        date=date,
-    )
-    params_payload["version"] = args.version
-    params_payload["params"]["clip_logit_scale"] = clip_logit_scale
-
-    metrics_payload = result_to_metrics_dict(res)
-
+    res = optimize_thresholds(scores, labels, n_trials=args.trials, seed=0)
+    payload = {
+        "version": args.version,
+        "date": _today(),
+        "model": "musiq-ava",
+        "notes": f"optuna TPE {args.trials} trials (thresholds only)",
+        "thresholds": list(res.thresholds),
+    }
     out = Path(args.out) if args.out else BENCH_DIR / "params.candidate.json"
-    save_params(out, params_payload)
-
+    save_params(out, payload)
     version = version_with_sha(args.version)
     out_dir = RESULTS_DIR / version
     out_dir.mkdir(parents=True, exist_ok=True)
-    (out_dir / "metrics.json").write_text(json.dumps(metrics_payload, indent=2))
-    (out_dir / "params.json").write_text(json.dumps(params_payload, indent=2))
-
+    (out_dir / "metrics.json").write_text(json.dumps({"val": res.metrics.to_dict()}, indent=2))
+    (out_dir / "params.json").write_text(json.dumps(payload, indent=2))
     print(f"best Spearman={res.metrics.spearman:.3f}  MAE={res.metrics.mae:.2f}")
     print(f"candidate → {out}")
-    print(f"results   → {out_dir}")
-
-
-def cmd_ablate(args):
-    scores, labels = _load_dataset()
-    current = load_params(BENCH_DIR / "params.current.json")
-    scores = _scores_with_clip_scalar(scores, current["params"]["clip_logit_scale"])
-    results = run_ablation(scores, labels, n_trials=args.trials, seed=0)
-    for name, r in sorted(results.items(), key=lambda kv: -kv[1].metrics.spearman):
-        print(f"{name:10s}  Spearman={r.metrics.spearman:.3f}  MAE={r.metrics.mae:.2f}")
 
 
 def cmd_leaderboard(args):
@@ -249,15 +186,11 @@ def _build_parser() -> argparse.ArgumentParser:
     e.add_argument("--params", default=str(BENCH_DIR / "params.current.json"))
     e.set_defaults(func=lambda a: cmd_eval(a))
 
-    o = sub.add_parser("optimize", help="Optuna TPE search for ensemble weights")
+    o = sub.add_parser("optimize", help="Optuna TPE search for 4 bucket thresholds")
     o.add_argument("--trials", type=int, default=500)
-    o.add_argument("--version", default="v0.2.0")
+    o.add_argument("--version", default="v0.4.0")
     o.add_argument("--out")
     o.set_defaults(func=lambda a: cmd_optimize(a))
-
-    a = sub.add_parser("ablate", help="per-model ablation study")
-    a.add_argument("--trials", type=int, default=100)
-    a.set_defaults(func=lambda a: cmd_ablate(a))
 
     l = sub.add_parser("leaderboard", help="regenerate LEADERBOARD.md")
     l.set_defaults(func=lambda a: cmd_leaderboard(a))
