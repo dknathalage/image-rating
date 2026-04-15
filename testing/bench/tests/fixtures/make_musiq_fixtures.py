@@ -22,6 +22,7 @@ PATCH_SIZE = 32
 HASH_GRID = 10
 MUSIQ_SCALES = [224, 384]
 NUM_CHANNELS = 3
+ORIG_RES_MAX_SEQ = 512
 
 
 def write_tensor(path: Path, t: torch.Tensor) -> None:
@@ -76,7 +77,11 @@ def main():
             resized, PATCH_SIZE, PATCH_SIZE, HASH_GRID, 1, rh, rw, NUM_CHANNELS, scale_id, max_seq_len,
         )
         outs.append(out)
-    full = torch.cat(outs, dim=-1).transpose(1, 2)  # [1, 193, 3075]
+    outs.append(_extract_patches_and_positions_from_image(
+        img_multi, PATCH_SIZE, PATCH_SIZE, HASH_GRID, 1,
+        500, 400, NUM_CHANNELS, 2, ORIG_RES_MAX_SEQ,
+    ))
+    full = torch.cat(outs, dim=-1).transpose(1, 2)  # [1, 705, 3075]
     write_tensor(OUT_DIR / "patch_tensor_500x400.f32", full)
 
     # MUSIQ normalization convention: (pix - 0.5) * 2. Emit both variants
