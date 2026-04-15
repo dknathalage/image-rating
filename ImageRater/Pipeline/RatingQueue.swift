@@ -1,3 +1,4 @@
+import AppKit
 import CoreData
 import Foundation
 
@@ -20,14 +21,57 @@ final class RatingQueue {
 
     private var context: NSManagedObjectContext?
     private var container: NSPersistentContainer?
+    private var progress: RatingProgress?
     private var drainTask: Task<Void, Never>?
     /// objectID → effective stars (0 = clear override, still needs save)
     private var pending: [NSManagedObjectID: Int] = [:]
     private var hasPending = false
+    private var terminateObserver: NSObjectProtocol?
 
-    func configure(context: NSManagedObjectContext, container: NSPersistentContainer) {
+    func configure(context: NSManagedObjectContext, container: NSPersistentContainer, progress: RatingProgress) {
         self.context = context
         self.container = container
+        self.progress = progress
+        // Synchronous flush on app quit — prevents loss of pending ratings.
+        // willTerminate fires after user confirms quit; blocking here keeps the
+        // process alive until CoreData save + XMP writes complete.
+        if terminateObserver == nil {
+            terminateObserver = NotificationCenter.default.addObserver(
+                forName: NSApplication.willTerminateNotification,
+                object: nil,
+                queue: .main
+            ) { [weak self] _ in
+                MainActor.assumeIsolated { self?.flushSynchronous() }
+            }
+        }
+    }
+
+    /// Synchronous flush — used by willTerminate. Blocks until save + XMP writes done.
+    private func flushSynchronous() {
+        drainTask?.cancel()
+        drainTask = nil
+        guard hasPending, let context, let container else { return }
+        hasPending = false
+        let snapshot = pending
+        pending.removeAll()
+        if context.hasChanges { try? context.save() }
+
+        guard !snapshot.isEmpty else { return }
+        guard UserDefaults.standard.object(forKey: FocalSettings.autoWriteXMP) == nil
+                ? FocalSettings.defaultAutoWriteXMP
+                : UserDefaults.standard.bool(forKey: FocalSettings.autoWriteXMP)
+        else { return }
+
+        // Private-queue context + performAndWait — blocks main until companion lookup
+        // + sidecar writes done. container.performBackgroundTask is async fire-and-forget
+        // and would let the process exit before writes complete.
+        let bgCtx = NSManagedObjectContext(concurrencyType: .privateQueueConcurrencyType)
+        bgCtx.persistentStoreCoordinator = container.persistentStoreCoordinator
+        // willTerminate path — main thread is blocked, no UI updates possible. Skip progress.
+        bgCtx.performAndWait {
+            let xmpTasks = Self.expandToCompanions(snapshot: snapshot, ctx: bgCtx)
+            Self.applyXMPTasks(xmpTasks, progress: nil)
+        }
     }
 
     /// Enqueue a rating change. Call after setting record.userOverride in-memory.
@@ -82,40 +126,70 @@ final class RatingQueue {
         snapshot: [NSManagedObjectID: Int],
         container: NSPersistentContainer
     ) {
-        let toWrite = snapshot.filter { $0.value > 0 }
-        guard !toWrite.isEmpty else { return }
+        guard !snapshot.isEmpty else { return }
         guard UserDefaults.standard.object(forKey: FocalSettings.autoWriteXMP) == nil
                 ? FocalSettings.defaultAutoWriteXMP
                 : UserDefaults.standard.bool(forKey: FocalSettings.autoWriteXMP)
         else { return }
 
+        let progress = self.progress
         Task.detached(priority: .background) {
             container.performBackgroundTask { bgCtx in
-                var xmpTasks: [(URL, Int)] = []
-                for (objectID, stars) in toWrite {
-                    guard let record = try? bgCtx.existingObject(with: objectID) as? ImageRecord,
-                          let path = record.filePath else { continue }
-                    xmpTasks.append((URL(filePath: path), stars))
+                let xmpTasks = Self.expandToCompanions(snapshot: snapshot, ctx: bgCtx)
+                Self.applyXMPTasks(xmpTasks, progress: progress)
+            }
+        }
+    }
 
-                    // Fetch companions by groupID — targeted predicate, not allObjects.
-                    if let gid = record.groupID {
-                        let req = ImageRecord.fetchRequest()
-                        req.predicate = NSPredicate(
-                            format: "groupID == %@ AND isGroupPrimary == NO", gid)
-                        req.propertiesToFetch = ["filePath"]
-                        if let companions = try? bgCtx.fetch(req) {
-                            for c in companions {
-                                if let cp = c.filePath {
-                                    xmpTasks.append((URL(filePath: cp), stars))
-                                }
-                            }
+    /// Expand each (primary objectID, stars) pair into (URL, stars) pairs for the
+    /// primary file plus all RAW companions in its group. Must run on `ctx`'s queue.
+    private static func expandToCompanions(
+        snapshot: [NSManagedObjectID: Int],
+        ctx: NSManagedObjectContext
+    ) -> [(URL, Int)] {
+        var tasks: [(URL, Int)] = []
+        for (objectID, stars) in snapshot {
+            guard let record = try? ctx.existingObject(with: objectID) as? ImageRecord,
+                  let path = record.filePath else { continue }
+            tasks.append((URL(filePath: path), stars))
+            if let gid = record.groupID {
+                let req = ImageRecord.fetchRequest()
+                req.predicate = NSPredicate(
+                    format: "groupID == %@ AND isGroupPrimary == NO", gid)
+                req.propertiesToFetch = ["filePath"]
+                if let companions = try? ctx.fetch(req) {
+                    for c in companions {
+                        if let cp = c.filePath {
+                            tasks.append((URL(filePath: cp), stars))
                         }
                     }
                 }
-                for (url, stars) in xmpTasks {
-                    try? MetadataWriter.writeSidecar(stars: stars, for: url)
-                }
             }
+        }
+        return tasks
+    }
+
+    /// Apply each rating to disk: stars > 0 writes/embeds the rating; stars == 0
+    /// strips it (deletes RAW sidecar / removes embedded xmp:Rating).
+    /// Reports progress through `progress` if supplied; safe to pass nil from blocking
+    /// paths (e.g. willTerminate where the main thread can't render UI updates).
+    private static func applyXMPTasks(_ tasks: [(URL, Int)], progress: RatingProgress?) {
+        let total = tasks.count
+        if let progress {
+            DispatchQueue.main.async { progress.start(phase: "Saving ratings…", total: total) }
+        }
+        for (url, stars) in tasks {
+            if stars > 0 {
+                try? MetadataWriter.writeSidecar(stars: stars, for: url)
+            } else {
+                try? MetadataWriter.clearRating(for: url)
+            }
+            if let progress {
+                DispatchQueue.main.async { progress.tick() }
+            }
+        }
+        if let progress {
+            DispatchQueue.main.async { progress.finish() }
         }
     }
 }

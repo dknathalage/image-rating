@@ -75,6 +75,7 @@ struct ContentView: View {
     @State private var showCompareSheet = false
     @StateObject private var keyboard = KeyboardHandler()
     @State private var ratingQueue = RatingQueue()
+    @StateObject private var ratingProgress = RatingProgress()
 
     // MARK: - Sidebar
 
@@ -139,14 +140,18 @@ struct ContentView: View {
                 onRunAI: { runAIOnSelected() }
             )
             .safeAreaInset(edge: .bottom) {
-                // Only show bottom bar for full-session pipeline (not selected-AI sheet)
-                if let status = processingStatus, !showAIProgressSheet {
-                    ProcessingStatusBar(
-                        status: status,
-                        done: processingDone,
-                        total: processingTotal,
-                        onCancel: { processingTask?.cancel() }
-                    )
+                VStack(spacing: 0) {
+                    if ratingProgress.isActive {
+                        RatingProgressBar(progress: ratingProgress)
+                    }
+                    if let status = processingStatus, !showAIProgressSheet {
+                        ProcessingStatusBar(
+                            status: status,
+                            done: processingDone,
+                            total: processingTotal,
+                            onCancel: { processingTask?.cancel() }
+                        )
+                    }
                 }
             }
             // Full-session processing setup
@@ -209,7 +214,10 @@ struct ContentView: View {
             .onDisappear { keyboard.stop(); ratingQueue.flush() }
             .onChange(of: selectedSession) { _, session in
                 ratingQueue.flush()
-                if let session { writeRatingsInBackground(for: session) }
+                if let session {
+                    loadRatingsFromDisk(for: session)
+                    writeRatingsInBackground(for: session)
+                }
             }
             .onChange(of: anchorID) { _, id in
                 guard detailRecord != nil, let id else { return }
@@ -294,8 +302,15 @@ struct ContentView: View {
     }
 
     private func handleAppear() {
-        ratingQueue.configure(context: ctx, container: PersistenceController.shared.container)
-        if let session = selectedSession { writeRatingsInBackground(for: session) }
+        ratingQueue.configure(
+            context: ctx,
+            container: PersistenceController.shared.container,
+            progress: ratingProgress
+        )
+        if let session = selectedSession {
+            loadRatingsFromDisk(for: session)
+            writeRatingsInBackground(for: session)
+        }
         keyboard.onPrev = navigatePrev
         keyboard.onNext = navigateNext
         keyboard.onRate = setRating
@@ -410,6 +425,43 @@ struct ContentView: View {
         Task.detached(priority: .background) {
             for (url, stars) in tasks {
                 try? MetadataWriter.writeSidecar(stars: stars, for: url)
+            }
+        }
+    }
+
+    /// Reverse sweep: read XMP / embedded ratings from disk and seed userOverride for
+    /// records that don't have one yet. Runs on background context to avoid main-thread
+    /// I/O. Picks up ratings from prior app sessions, external tools (Photomator, Lightroom),
+    /// or records imported before the createRecord seed logic existed.
+    private func loadRatingsFromDisk(for session: Session) {
+        let sessionID = session.objectID
+        let container = PersistenceController.shared.container
+        let progress = ratingProgress
+        Task.detached(priority: .utility) {
+            container.performBackgroundTask { bgCtx in
+                guard let session = try? bgCtx.existingObject(with: sessionID) as? Session,
+                      let images = session.images?.allObjects as? [ImageRecord] else { return }
+                let total = images.count
+                DispatchQueue.main.async { progress.start(phase: "Loading ratings…", total: total) }
+                var changed = 0
+                for record in images {
+                    defer { DispatchQueue.main.async { progress.tick() } }
+                    if let o = record.userOverride, o.int16Value > 0 { continue }
+                    guard let path = record.filePath else { continue }
+                    let stars = MetadataWriter.readRating(for: URL(filePath: path))
+                    if (1...5).contains(stars) {
+                        record.userOverride = NSNumber(value: Int16(stars))
+                        changed += 1
+                    } else if stars == -1 && !record.cullRejected {
+                        record.cullRejected = true
+                        record.cullReason = "rejected"
+                        changed += 1
+                    }
+                }
+                if changed > 0, bgCtx.hasChanges {
+                    try? bgCtx.save()
+                }
+                DispatchQueue.main.async { progress.finish() }
             }
         }
     }
@@ -854,6 +906,31 @@ private struct ProcessingSetupSheet: View {
         case 0.6..<0.8: return "Strict"
         default:        return "Very Strict"
         }
+    }
+}
+
+// MARK: - Rating Progress Bar
+
+private struct RatingProgressBar: View {
+    @ObservedObject var progress: RatingProgress
+
+    var body: some View {
+        VStack(spacing: 4) {
+            HStack {
+                Text(progress.phase)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("\(progress.done) / \(progress.total)")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
+            ProgressView(value: Double(progress.done), total: Double(max(progress.total, 1)))
+                .progressViewStyle(.linear)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(.regularMaterial)
     }
 }
 

@@ -14,6 +14,7 @@
 		099B2F15CCAE9B0C9DCEA654 /* RatingPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 146C4A44F572FAC2FDE69F5A /* RatingPipeline.swift */; };
 		0D5E24DEF80DE4F84A8937F9 /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 162E59DEA04A5BCE4B89D301 /* PersistenceController.swift */; };
 		125ABD90A2D581E43E4C82E2 /* ModelStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64DB3906C3B54057D8A598BE /* ModelStoreView.swift */; };
+		144E619E36D289F8697FDFF2 /* RatingProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E8CDBBC91D0B3E9342E6390 /* RatingProgress.swift */; };
 		1EB278BB2399ACF700226EB9 /* ProcessingQueueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDA01F670C8E9664060AC5C2 /* ProcessingQueueTests.swift */; };
 		205F78BD511C0ECC4125D456 /* LibRawWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24AAC03C951483BA8D5D6173 /* LibRawWrapper.swift */; };
 		219466665B1622D64C21A773 /* ThumbnailCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03BDCA44CF91A7599CB55BA8 /* ThumbnailCache.swift */; };
@@ -87,6 +88,7 @@
 		64DB3906C3B54057D8A598BE /* ModelStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelStoreView.swift; sourceTree = "<group>"; };
 		6986175D0C7F6DEC13DD925D /* FocalTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FocalTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		6C00B4E4D819E689ABB8993F /* ScoreBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScoreBadge.swift; sourceTree = "<group>"; };
+		6E8CDBBC91D0B3E9342E6390 /* RatingProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RatingProgress.swift; sourceTree = "<group>"; };
 		72949D9A73FF7413768D0251 /* RatingPipelineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RatingPipelineTests.swift; sourceTree = "<group>"; };
 		7A8AB7CCBCBB523D62A6BFBE /* GridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridView.swift; sourceTree = "<group>"; };
 		7B98FD8020EE5D1ACCBA9F0E /* RatingResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RatingResult.swift; sourceTree = "<group>"; };
@@ -233,6 +235,7 @@
 				4316DA84804039C4C3DA9E8B /* DiversityScorer.swift */,
 				888E293F04774E0A2F8CEED2 /* ProcessingQueue.swift */,
 				146C4A44F572FAC2FDE69F5A /* RatingPipeline.swift */,
+				6E8CDBBC91D0B3E9342E6390 /* RatingProgress.swift */,
 				B91E21321E7E3EECDC34D774 /* RatingQueue.swift */,
 			);
 			path = Pipeline;
@@ -420,6 +423,7 @@
 				C88283CA8CCACBEA5765C33F /* ProcessingQueue.swift in Sources */,
 				F04CD843AF45BB67ECF9AF4E /* RatingFilterView.swift in Sources */,
 				099B2F15CCAE9B0C9DCEA654 /* RatingPipeline.swift in Sources */,
+				144E619E36D289F8697FDFF2 /* RatingProgress.swift in Sources */,
 				76BB5026D94220FAF50F7E10 /* RatingQueue.swift in Sources */,
 				319AD2DAB74802935DD72D34 /* RatingResult.swift in Sources */,
 				4375ACD265947FC8047F76C8 /* ScoreBadge.swift in Sources */,

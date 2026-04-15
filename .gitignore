@@ -30,9 +30,20 @@ DerivedData/
 
 # Test assets (large binary files, not committed)
 testing/
+!testing/bench/
+!testing/bench/**
+
+# Re-exclude artifacts underneath the bench whitelist
+testing/bench/**/__pycache__/
+testing/bench/**/*.pyc
+testing/bench/**/.venv/
+testing/bench/**/.cache/
+testing/bench/**/data/
+testing/bench/**/results/
 
 # Tooling
 .superpowers/
+.claude/
 
 # Git worktrees
 .worktrees/

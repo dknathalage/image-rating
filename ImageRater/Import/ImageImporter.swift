@@ -133,5 +133,15 @@ enum ImageImporter {
         record.groupID = groupID
         record.isGroupPrimary = isPrimary
         record.scoringFilePath = scoringPath
+
+        // Seed userOverride from existing XMP sidecar / embedded metadata so ratings
+        // persisted by prior sessions (or external tools) survive re-import.
+        let stars = MetadataWriter.readRating(for: url)
+        if (1...5).contains(stars) {
+            record.userOverride = NSNumber(value: Int16(stars))
+        } else if stars == -1 {
+            record.cullRejected = true
+            record.cullReason = "rejected"
+        }
     }
 }

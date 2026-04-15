@@ -61,6 +61,78 @@ enum MetadataWriter {
         return Int(value) ?? 0
     }
 
+    /// Clears rating for the image: deletes .xmp sidecar for RAW, strips xmp:Rating
+    /// + xmp:Label from embedded metadata for everything else.
+    static func clearRating(for imageURL: URL) throws {
+        if isRAW(imageURL) {
+            let xmp = sidecarURL(for: imageURL)
+            if FileManager.default.fileExists(atPath: xmp.path) {
+                try FileManager.default.removeItem(at: xmp)
+            }
+            return
+        }
+        guard let source = CGImageSourceCreateWithURL(imageURL as CFURL, nil),
+              let uti = CGImageSourceGetType(source) else {
+            throw MetadataWriterError.readFailed
+        }
+        // Copy existing metadata and remove rating tags. Empty metadata is fine if absent.
+        let mutable: CGMutableImageMetadata
+        if let existing = CGImageSourceCopyMetadataAtIndex(source, 0, nil),
+           let copy = CGImageMetadataCreateMutableCopy(existing) {
+            mutable = copy
+        } else {
+            mutable = CGImageMetadataCreateMutable()
+        }
+        CGImageMetadataRegisterNamespaceForPrefix(
+            mutable,
+            "http://ns.adobe.com/xap/1.0/" as CFString,
+            "xmp" as CFString,
+            nil
+        )
+        CGImageMetadataRemoveTagWithPath(mutable, nil, "xmp:Rating" as CFString)
+        CGImageMetadataRemoveTagWithPath(mutable, nil, "xmp:Label" as CFString)
+
+        let tempURL = imageURL.deletingLastPathComponent()
+            .appendingPathComponent("._imgrater_\(UUID().uuidString)_\(imageURL.lastPathComponent)")
+        guard let destination = CGImageDestinationCreateWithURL(
+            tempURL as CFURL, uti, 1, nil
+        ) else {
+            throw MetadataWriterError.embeddingFailed
+        }
+        // merge=false — required to actually strip tags. We pass full modified metadata
+        // copy so all other tags (EXIF, TIFF, IPTC) round-trip via CopyImageSource.
+        let options: [CFString: Any] = [
+            kCGImageDestinationMetadata: mutable,
+            kCGImageDestinationMergeMetadata: false
+        ]
+        var copyError: Unmanaged<CFError>?
+        guard CGImageDestinationCopyImageSource(destination, source, options as CFDictionary, &copyError) else {
+            try? FileManager.default.removeItem(at: tempURL)
+            throw MetadataWriterError.embeddingFailed
+        }
+        do {
+            _ = try FileManager.default.replaceItemAt(imageURL, withItemAt: tempURL)
+        } catch {
+            try? FileManager.default.removeItem(at: tempURL)
+            throw MetadataWriterError.writeFailed(error)
+        }
+    }
+
+    /// Universal rating reader — dispatches to sidecar for RAW, embedded for everything else.
+    /// Returns stars in -1…5 (−1 = Rejected, 0 = no rating), or 0 on any error.
+    static func readRating(for imageURL: URL) -> Int {
+        if isRAW(imageURL) {
+            let xmp = sidecarURL(for: imageURL)
+            guard FileManager.default.fileExists(atPath: xmp.path) else { return 0 }
+            return (try? readRating(from: xmp)) ?? 0
+        }
+        guard let source = CGImageSourceCreateWithURL(imageURL as CFURL, nil),
+              let metadata = CGImageSourceCopyMetadataAtIndex(source, 0, nil),
+              let value = CGImageMetadataCopyStringValueWithPath(
+                  metadata, nil, "xmp:Rating" as CFString) as String? else { return 0 }
+        return Int(value) ?? 0
+    }
+
     // MARK: Private
 
     private static func isRAW(_ url: URL) -> Bool {
