@@ -55,6 +55,13 @@ def test_stratified_sample_n_larger_than_df():
     assert len(result) == 5
 
 
-def test_dp_challenge_url_out_of_range_raises():
-    with pytest.raises(NotImplementedError):
-        _dp_challenge_url(2000)
+def test_dp_challenge_url_buckets_by_challenge_id():
+    # challenge_id=44 → bucket 0-999
+    url = _dp_challenge_url(9160, 44)
+    assert "images_challenge/0-999/44/" in url
+    assert url.endswith("Copyrighted_Image_Reuse_Prohibited_9160.jpg")
+
+    # challenge_id=1396 → bucket 1000-1999
+    url = _dp_challenge_url(953619, 1396)
+    assert "images_challenge/1000-1999/1396/" in url
+    assert url.endswith("Copyrighted_Image_Reuse_Prohibited_953619.jpg")

@@ -72,10 +72,19 @@ def stratified_sample(df: pd.DataFrame, n: int, seed: int = 0) -> pd.DataFrame:
     return sampled.head(n).reset_index(drop=True)
 
 
-def _dp_challenge_url(image_id: int) -> str:
-    if image_id >= 1000:
-        raise NotImplementedError(f"bucket for image_id={image_id} not implemented; fix in Task 14")
-    return f"https://images.dpchallenge.com/images_challenge/0-999/{image_id}.jpg"
+def _dp_challenge_url(image_id: int, challenge_id: int, size: int = 1200) -> str:
+    """Direct image URL on dpchallenge.com CDN.
+
+    Pattern:
+      images_challenge/<bucket>/<challenge_id>/<size>/Copyrighted_Image_Reuse_Prohibited_<image_id>.jpg
+    where bucket groups challenge_ids in 1000-wide ranges (e.g. 0-999, 1000-1999).
+    """
+    low = (challenge_id // 1000) * 1000
+    bucket = f"{low}-{low + 999}"
+    return (
+        f"https://images.dpchallenge.com/images_challenge/{bucket}/{challenge_id}"
+        f"/{size}/Copyrighted_Image_Reuse_Prohibited_{image_id}.jpg"
+    )
 
 
 def download_images(
@@ -90,10 +99,11 @@ def download_images(
     headers = {"User-Agent": "focal-bench/1.0"}
     for _, row in tqdm(df.iterrows(), total=len(df), desc="download"):
         image_id = int(row["image_id"])
+        challenge_id = int(row["challenge_id"])
         dest = out_dir / f"{image_id}.jpg"
         if not dest.exists():
             try:
-                resp = requests.get(_dp_challenge_url(image_id), timeout=timeout, headers=headers)
+                resp = requests.get(_dp_challenge_url(image_id, challenge_id), timeout=timeout, headers=headers)
                 if resp.status_code == 200 and len(resp.content) > 1000:
                     tmp = dest.with_suffix(".jpg.tmp")
                     tmp.write_bytes(resp.content)
