@@ -62,6 +62,7 @@ targets:
       - path: ImageRater/Pipeline/RatingPipeline.swift
       - path: ImageRater/Pipeline/CLIPTextEmbeddings.swift
       - path: ImageRater/App/FocalSettings.swift
+      - path: ImageRater/App/FocalSettings+Generated.swift
       - path: ImageRater/LibRaw/LibRawWrapper.swift
       - path: ImageRater/LibRaw/LibRawBridge.h
       - path: ImageRater/LibRaw/LibRawBridge.mm

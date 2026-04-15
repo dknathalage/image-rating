@@ -14,6 +14,7 @@
 		099B2F15CCAE9B0C9DCEA654 /* RatingPipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 146C4A44F572FAC2FDE69F5A /* RatingPipeline.swift */; };
 		0D5E24DEF80DE4F84A8937F9 /* PersistenceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 162E59DEA04A5BCE4B89D301 /* PersistenceController.swift */; };
 		0EC727B5D2534793EBB89420 /* CLIPTextEmbeddings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 931A662D8708DC59CCFD9D45 /* CLIPTextEmbeddings.swift */; };
+		0F4B1420B2FDEDFC5C8F6476 /* FocalSettings+Generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACA2A2C374F227DBE7FC0900 /* FocalSettings+Generated.swift */; };
 		125ABD90A2D581E43E4C82E2 /* ModelStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64DB3906C3B54057D8A598BE /* ModelStoreView.swift */; };
 		1EB278BB2399ACF700226EB9 /* ProcessingQueueTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDA01F670C8E9664060AC5C2 /* ProcessingQueueTests.swift */; };
 		205F78BD511C0ECC4125D456 /* LibRawWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24AAC03C951483BA8D5D6173 /* LibRawWrapper.swift */; };
@@ -552,6 +553,7 @@
 			files = (
 				0EC727B5D2534793EBB89420 /* CLIPTextEmbeddings.swift in Sources */,
 				D97D4C0F60EF6F8B60233DFE /* FocalScorerMain.swift in Sources */,
+				0F4B1420B2FDEDFC5C8F6476 /* FocalSettings+Generated.swift in Sources */,
 				FD3492DCAD16EB8EE3B671BD /* FocalSettings.swift in Sources */,
 				B5726914E4A172ACECA5DC33 /* LibRawBridge.mm in Sources */,
 				B05B292A3A5CDC18625F43F9 /* LibRawWrapper.swift in Sources */,
