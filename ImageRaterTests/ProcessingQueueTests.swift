@@ -39,42 +39,4 @@ final class ProcessingQueueTests: XCTestCase {
                           "Unexpected state: \(record.processState ?? "nil")")
         }
     }
-
-    func testWeightNormalisationSumsToOne() {
-        let ud = UserDefaults.standard
-        ud.set(0.6, forKey: FocalSettings.weightTechnical)
-        ud.set(0.6, forKey: FocalSettings.weightAesthetic)
-        ud.set(0.3, forKey: FocalSettings.weightClip)
-        defer {
-            ud.removeObject(forKey: FocalSettings.weightTechnical)
-            ud.removeObject(forKey: FocalSettings.weightAesthetic)
-            ud.removeObject(forKey: FocalSettings.weightClip)
-        }
-        let wT = Float(ud.double(forKey: FocalSettings.weightTechnical))
-        let wA = Float(ud.double(forKey: FocalSettings.weightAesthetic))
-        let wC = Float(ud.double(forKey: FocalSettings.weightClip))
-        let sum = wT + wA + wC
-        let (wTn, wAn, wCn) = (wT/sum, wA/sum, wC/sum)
-        XCTAssertEqual(wTn + wAn + wCn, 1.0, accuracy: 0.001)
-    }
-
-    func testWeightNormalisationZeroSumFallsBackToDefaults() {
-        let ud = UserDefaults.standard
-        ud.set(0.0, forKey: FocalSettings.weightTechnical)
-        ud.set(0.0, forKey: FocalSettings.weightAesthetic)
-        ud.set(0.0, forKey: FocalSettings.weightClip)
-        defer {
-            ud.removeObject(forKey: FocalSettings.weightTechnical)
-            ud.removeObject(forKey: FocalSettings.weightAesthetic)
-            ud.removeObject(forKey: FocalSettings.weightClip)
-        }
-        let wT = Float(ud.double(forKey: FocalSettings.weightTechnical))
-        let wA = Float(ud.double(forKey: FocalSettings.weightAesthetic))
-        let wC = Float(ud.double(forKey: FocalSettings.weightClip))
-        let sum = wT + wA + wC
-        let defSum = Float(FocalSettings.defaultWeightTechnical + FocalSettings.defaultWeightAesthetic + FocalSettings.defaultWeightClip)
-        XCTAssertEqual(sum, 0.0)
-        XCTAssertEqual(defSum, 1.0, accuracy: 0.001)
-    }
-
 }

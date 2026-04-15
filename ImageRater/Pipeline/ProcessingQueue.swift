@@ -98,10 +98,8 @@ actor ProcessingQueue {
                         if decodeError {
                             r.decodeError = true
                         } else if !hasOverride, case .rated(let scores) = ratingResult {
-                            r.topiqTechnicalScore  = scores.topiqTechnicalScore
-                            r.topiqAestheticScore  = scores.topiqAestheticScore
-                            r.clipIQAScore         = scores.clipIQAScore
-                            r.combinedQualityScore = scores.combinedQualityScore
+                            r.musiqAesthetic = scores.musiqAesthetic
+                            r.ratingStars = NSNumber(value: Int16(scores.stars))
                         }
                         r.processState = ProcessState.done
                         try? self.context.save()
@@ -115,9 +113,9 @@ actor ProcessingQueue {
 
         try Task.checkCancellation()
 
-        // ─── PASS 2: percentile star assignment + file writes ─────────────────
+        // ─── PASS 2: propagate stars to companions + sidecar writes ───────────
 
-        await normalizeAndWriteStars(sessionID: sessionID, onProgress: onProgress)
+        await writeStarsAndSidecars(sessionID: sessionID, onProgress: onProgress)
 
         onProgress?(total, total, "Done")
         log.info("Session complete — \(total) images, \(decodeErrorCount) decode errors")
@@ -125,23 +123,19 @@ actor ProcessingQueue {
 
     // MARK: Private
 
-    /// Rank all processed primaries by session-normalised combined score, assign percentile-based
-    /// 1–5 star ratings scaled by strictness, propagate to companions, and write metadata.
-    /// Each sub-score (technical, aesthetic, CLIP) is min-max normalised across the session
-    /// before combining so that a narrow-range model (e.g. aesthetic ±0.10) contributes
-    /// as much as a wide-range model (e.g. technical ±0.60).
-    private func normalizeAndWriteStars(
+    /// Propagates chosen star value (override or AI) to companions by groupID and writes
+    /// XMP sidecars for all rated images. Per-image star bucketing already happened in
+    /// `RatingPipeline.rate()`, so no session-level normalization needed.
+    private func writeStarsAndSidecars(
         sessionID: NSManagedObjectID,
         onProgress: (@Sendable (Int, Int, String) -> Void)?
     ) async {
         struct Entry {
             let id: NSManagedObjectID
-            let tech: Float
-            let aes: Float
-            let clip: Float
             let filePath: String?
             let groupID: String?
             let overrideStars: Int?
+            let ratingStars: Int
             let decodeError: Bool
         }
 
@@ -153,12 +147,10 @@ actor ProcessingQueue {
                 .map { r in
                     Entry(
                         id: r.objectID,
-                        tech: r.topiqTechnicalScore,
-                        aes:  r.topiqAestheticScore,
-                        clip: r.clipIQAScore,
                         filePath: r.filePath,
                         groupID: r.groupID,
                         overrideStars: r.userOverride.map { Int($0.int16Value) },
+                        ratingStars: Int(r.ratingStars?.int16Value ?? 0),
                         decodeError: r.decodeError
                     )
                 }
@@ -166,56 +158,6 @@ actor ProcessingQueue {
 
         guard !entries.isEmpty else { return }
 
-        // Percentile rank only valid (non-override, non-decode-error) images
-        let validIndices = entries.indices.filter { !entries[$0].decodeError && entries[$0].overrideStars == nil }
-        let valid = validIndices.map { entries[$0] }
-
-        // Min-max normalise each sub-score across the valid pool
-        func minMax(_ vals: [Float]) -> (Float, Float) {
-            (vals.min() ?? 0, vals.max() ?? 1)
-        }
-        func norm(_ v: Float, _ lo: Float, _ hi: Float) -> Float {
-            hi > lo ? (v - lo) / (hi - lo) : 0.5
-        }
-        let (tLo, tHi) = minMax(valid.map(\.tech))
-        let (aLo, aHi) = minMax(valid.map(\.aes))
-        let (cLo, cHi) = minMax(valid.map(\.clip))
-
-        let ud = UserDefaults.standard
-        let strictness = ud.object(forKey: FocalSettings.cullStrictness) != nil
-            ? ud.double(forKey: FocalSettings.cullStrictness)
-            : FocalSettings.defaultCullStrictness
-        let wTech = ud.object(forKey: FocalSettings.weightTechnical) != nil
-            ? Float(ud.double(forKey: FocalSettings.weightTechnical))
-            : Float(FocalSettings.defaultWeightTechnical)
-        let wAes = ud.object(forKey: FocalSettings.weightAesthetic) != nil
-            ? Float(ud.double(forKey: FocalSettings.weightAesthetic))
-            : Float(FocalSettings.defaultWeightAesthetic)
-        let wClip = ud.object(forKey: FocalSettings.weightClip) != nil
-            ? Float(ud.double(forKey: FocalSettings.weightClip))
-            : Float(FocalSettings.defaultWeightClip)
-        let wSum = wTech + wAes + wClip
-        let (wTn, wAn, wCn) = wSum > 0
-            ? (wTech/wSum, wAes/wSum, wClip/wSum)
-            : (Float(FocalSettings.defaultWeightTechnical),
-               Float(FocalSettings.defaultWeightAesthetic),
-               Float(FocalSettings.defaultWeightClip))
-
-        let validScores: [Float] = valid.map { e in
-            wTn * norm(e.tech, tLo, tHi) +
-            wAn * norm(e.aes,  aLo, aHi) +
-            wCn * norm(e.clip, cLo, cHi)
-        }
-
-        let percentileRatings = percentileStars(scores: validScores, strictness: strictness)
-
-        // Map star assignments back to full entry array
-        var starsForIndex = [Int](repeating: 0, count: entries.count)
-        for (pos, entryIdx) in validIndices.enumerated() {
-            starsForIndex[entryIdx] = percentileRatings[pos]
-        }
-
-        // Write stars to CoreData and collect file tasks
         var writeTasks: [WriteTask] = []
 
         await context.perform { [self] in
@@ -228,24 +170,17 @@ actor ProcessingQueue {
                 companionsByGroup[gid, default: []].append(img)
             }
 
-            for (i, entry) in entries.enumerated() {
-                guard let r = try? self.context.existingObject(with: entry.id) as? ImageRecord else { continue }
+            for entry in entries {
+                // Skip decode-error rows with no stars
+                if entry.decodeError && entry.ratingStars == 0 && entry.overrideStars == nil { continue }
 
-                let stars: Int
-                if let o = entry.overrideStars {
-                    stars = o
-                } else if entry.decodeError {
-                    stars = 0
-                } else {
-                    stars = starsForIndex[i]
-                    r.ratingStars = NSNumber(value: Int16(stars))
-                }
+                let stars = entry.overrideStars ?? entry.ratingStars
+                if stars <= 0 { continue }
 
                 if let fp = entry.filePath {
                     writeTasks.append(WriteTask(url: URL(filePath: fp), stars: stars))
                 }
 
-                // Copy stars + write tasks for companions
                 if let gid = entry.groupID, let companions = companionsByGroup[gid] {
                     for c in companions {
                         c.ratingStars = NSNumber(value: Int16(stars))
@@ -264,30 +199,6 @@ actor ProcessingQueue {
             try? MetadataWriter.writeSidecar(stars: task.stars, for: task.url)
             onProgress?(i + 1, writeTotal, "Saving ratings…")
         }
-    }
-
-    /// Assigns 1–5 stars using a power-curve skew on percentile rank.
-    /// γ = 10^(2s−1): s=0→γ=0.1 (lenient), s=0.5→γ=1 (uniform), s=1→γ=10 (strict)
-    /// Bucket edges read from FocalSettings (tunable by optimizer; default [0.2, 0.4, 0.6, 0.8]).
-    private func percentileStars(scores: [Float], strictness: Double) -> [Int] {
-        let n = scores.count
-        guard n > 0 else { return [] }
-        let gamma = pow(10.0, 2 * min(max(strictness, 0), 1) - 1)
-        let (e1, e2, e3, e4) = FocalSettings.resolvedBucketEdges()
-        let sorted = scores.enumerated().sorted { $0.element < $1.element }
-        var result = [Int](repeating: 3, count: n)
-        for (rank, (originalIndex, _)) in sorted.enumerated() {
-            let pct = Double(rank) / Double(n)
-            let warped = pow(pct == 0 ? 1e-9 : pct, gamma)
-            result[originalIndex] = switch warped {
-            case ..<e1:        1
-            case e1..<e2:      2
-            case e2..<e3:      3
-            case e3..<e4:      4
-            default:           5
-            }
-        }
-        return result
     }
 
     /// Decode image + run inference in one function so cgImage is released
@@ -315,7 +226,7 @@ actor ProcessingQueue {
     }
 
     /// Run the full pipeline on a specific subset of images.
-    /// Scores only the supplied imageIDs, then normalises star ratings across the whole session.
+    /// Scores only the supplied imageIDs, then propagates stars + writes sidecars.
     func process(
         imageIDs: [NSManagedObjectID],
         onProgress: (@Sendable (Int, Int, String) -> Void)? = nil
@@ -372,10 +283,8 @@ actor ProcessingQueue {
                         if decodeError {
                             r.decodeError = true
                         } else if !hasOverride, case .rated(let scores) = ratingResult {
-                            r.topiqTechnicalScore  = scores.topiqTechnicalScore
-                            r.topiqAestheticScore  = scores.topiqAestheticScore
-                            r.clipIQAScore         = scores.clipIQAScore
-                            r.combinedQualityScore = scores.combinedQualityScore
+                            r.musiqAesthetic = scores.musiqAesthetic
+                            r.ratingStars = NSNumber(value: Int16(scores.stars))
                         }
                         r.processState = ProcessState.done
                         try? self.context.save()
@@ -388,7 +297,7 @@ actor ProcessingQueue {
         }
 
         try Task.checkCancellation()
-        await normalizeAndWriteStars(sessionID: sessionID, onProgress: onProgress)
+        await writeStarsAndSidecars(sessionID: sessionID, onProgress: onProgress)
         onProgress?(total, total, "Done")
     }
 }

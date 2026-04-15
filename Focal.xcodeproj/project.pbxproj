@@ -113,6 +113,7 @@
 		18B16C058C3DA6BA1021E3B6 /* ModelStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelStoreTests.swift; sourceTree = "<group>"; };
 		198583860C498ACDEEF9AA37 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		1B0BCEC4AA9DD6164F4B9683 /* MetadataWriterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetadataWriterTests.swift; sourceTree = "<group>"; };
+		1BD29CA945DA64E5BE758E6E /* ImageRater 4.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = "ImageRater 4.xcdatamodel"; sourceTree = "<group>"; };
 		238B925DA4A3E280D3F39EDC /* musiq-ava.mlpackage */ = {isa = PBXFileReference; path = "musiq-ava.mlpackage"; sourceTree = "<group>"; };
 		24AAC03C951483BA8D5D6173 /* LibRawWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LibRawWrapper.swift; sourceTree = "<group>"; };
 		2DFD0B621E4F1CCCD58D3886 /* resize_800x1200_384.f32 */ = {isa = PBXFileReference; path = resize_800x1200_384.f32; sourceTree = "<group>"; };
@@ -972,9 +973,10 @@
 			children = (
 				D43BF3A32139240A16C29D7D /* ImageRater 2.xcdatamodel */,
 				1458B70EA7DD6F081F3C4640 /* ImageRater 3.xcdatamodel */,
+				1BD29CA945DA64E5BE758E6E /* ImageRater 4.xcdatamodel */,
 				4572B7C1E79C4A824320228E /* ImageRater.xcdatamodel */,
 			);
-			currentVersion = 1458B70EA7DD6F081F3C4640 /* ImageRater 3.xcdatamodel */;
+			currentVersion = 1BD29CA945DA64E5BE758E6E /* ImageRater 4.xcdatamodel */;
 			path = ImageRater.xcdatamodeld;
 			sourceTree = "<group>";
 			versionGroupType = wrapper.xcdatamodel;

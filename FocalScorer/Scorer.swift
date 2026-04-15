@@ -6,9 +6,8 @@ enum Scorer {
 
     struct OutputImage: Codable {
         let filename: String
-        let topiqTechnical: Float
-        let topiqAesthetic: Float
-        let clipEmbedding: [Float]
+        let musiqAesthetic: Float
+        let stars: Int
     }
 
     struct Output: Codable {
@@ -39,15 +38,14 @@ enum Scorer {
             if case .rated(let s) = r {
                 results.append(OutputImage(
                     filename: url.lastPathComponent,
-                    topiqTechnical: s.topiqTechnicalScore,
-                    topiqAesthetic: s.topiqAestheticScore,
-                    clipEmbedding:  s.clipEmbedding
+                    musiqAesthetic: s.musiqAesthetic,
+                    stars: s.stars
                 ))
             }
         }
         let out = Output(
             generatedAt: ISO8601DateFormatter().string(from: Date()),
-            modelVersion: "topiq-nr, topiq-swin, clip-vision",
+            modelVersion: "musiq-ava",
             images: results
         )
         let encoder = JSONEncoder()

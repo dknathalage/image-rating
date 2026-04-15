@@ -66,7 +66,6 @@ struct ContentView: View {
     @State private var sessionToRemove: Session? = nil
     @State private var ratingFilter: Set<Int> = []
     @State private var showProcessingSheet = false
-    @AppStorage(FocalSettings.cullStrictness) private var cullStrictness: Double = FocalSettings.defaultCullStrictness
     @AppStorage(FocalSettings.defaultCellSize) private var cellSizeValue: Double = FocalSettings.defaultCellSizeValue
     @AppStorage(FocalSettings.autoWriteXMP) private var autoWriteXMP: Bool = FocalSettings.defaultAutoWriteXMP
     private var cellSize: CGFloat { CGFloat(cellSizeValue) }
@@ -151,8 +150,7 @@ struct ContentView: View {
             }
             // Full-session processing setup
             .sheet(isPresented: $showProcessingSheet) {
-                ProcessingSetupSheet(strictness: $cullStrictness) {
-                    applyStrictness(cullStrictness)
+                ProcessingSetupSheet {
                     runPipeline(session: session)
                 }
             }
@@ -460,10 +458,7 @@ struct ContentView: View {
             record.ratingStars = nil
             record.clipScore = nil
             record.aestheticScore = nil
-            record.topiqTechnicalScore = 0
-            record.topiqAestheticScore = 0
-            record.clipIQAScore = 0
-            record.combinedQualityScore = 0
+            record.musiqAesthetic = 0
             record.cullRejected = false
             record.cullReason = nil
             record.processState = ProcessState.pending
@@ -539,10 +534,6 @@ struct ContentView: View {
         }
     }
 
-    private func applyStrictness(_ s: Double) {
-        // cullStrictness is @AppStorage — persists automatically
-    }
-
     private func runPipeline(session: Session) {
         processingTask?.cancel()
         processingError = nil
@@ -586,7 +577,7 @@ struct ContentView: View {
             .filter { $0.isGroupPrimary }
             .sorted { ($0.filePath ?? "") < ($1.filePath ?? "") }
 
-        var lines = ["filename,companions,combinedQualityScore,topiqTechnical,topiqAesthetic,clipIQA,ratingStars,userOverride,processState,decodeError"]
+        var lines = ["filename,companions,musiqAesthetic,ratingStars,userOverride,processState,decodeError"]
         for r in sorted {
             let name = URL(filePath: r.filePath ?? "").lastPathComponent
             let companions = r.groupID.flatMap { companionsByGroup[$0] }?.sorted().joined(separator: "|") ?? ""
@@ -595,10 +586,7 @@ struct ContentView: View {
             lines.append([
                 name,
                 companions,
-                String(r.combinedQualityScore),
-                String(r.topiqTechnicalScore),
-                String(r.topiqAestheticScore),
-                String(r.clipIQAScore),
+                String(r.musiqAesthetic),
                 stars,
                 override,
                 r.processState ?? "",
@@ -635,10 +623,7 @@ struct ContentView: View {
             record.ratingStars = nil
             record.clipScore = nil
             record.aestheticScore = nil
-            record.topiqTechnicalScore = 0
-            record.topiqAestheticScore = 0
-            record.clipIQAScore = 0
-            record.combinedQualityScore = 0
+            record.musiqAesthetic = 0
             if let path = record.filePath {
                 let xmp = URL(filePath: path).deletingPathExtension().appendingPathExtension("xmp")
                 try? FileManager.default.removeItem(at: xmp)
@@ -800,7 +785,6 @@ private struct CompareCell: View {
 // MARK: - Processing Setup Sheet
 
 private struct ProcessingSetupSheet: View {
-    @Binding var strictness: Double
     let onStart: () -> Void
     @Environment(\.dismiss) private var dismiss
 
@@ -809,26 +793,10 @@ private struct ProcessingSetupSheet: View {
             Text("Process Images")
                 .font(.headline)
 
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text("Rejection Strictness")
-                        .font(.subheadline)
-                    Spacer()
-                    Text(strictnessLabel)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-                HStack(spacing: 8) {
-                    Text("Lenient").font(.caption).foregroundStyle(.secondary)
-                    Slider(value: $strictness, in: 0...1, step: 0.05)
-                    Text("Strict").font(.caption).foregroundStyle(.secondary)
-                }
-                Text("Controls how strictly images are rated. Lenient gives more high-star ratings; strict pushes more images to lower stars.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            Text("Run MUSIQ aesthetic scoring on all images in this session. Each image is rated 1–5 stars based on its aesthetic quality.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             HStack {
                 Button("Cancel") { dismiss() }
@@ -844,16 +812,6 @@ private struct ProcessingSetupSheet: View {
         }
         .padding(24)
         .frame(width: 400)
-    }
-
-    private var strictnessLabel: String {
-        switch strictness {
-        case ..<0.2:    return "Very Lenient"
-        case 0.2..<0.4: return "Lenient"
-        case 0.4..<0.6: return "Balanced"
-        case 0.6..<0.8: return "Strict"
-        default:        return "Very Strict"
-        }
     }
 }
 

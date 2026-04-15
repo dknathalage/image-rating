@@ -13,9 +13,8 @@ final class FocalScorerSmokeTests: XCTestCase {
         let models = try RatingPipeline.loadBundledModels()
         let r = await RatingPipeline.rate(image: cg, models: models)
         if case .rated(let s) = r {
-            XCTAssertGreaterThan(s.topiqTechnicalScore, 0)
-            XCTAssertGreaterThan(s.topiqAestheticScore, 0)
-            XCTAssertEqual(s.clipEmbedding.count, 512)
+            XCTAssertGreaterThan(s.musiqAesthetic, 0)
+            XCTAssertTrue((1...5).contains(s.stars))
         } else {
             XCTFail("expected .rated")
         }

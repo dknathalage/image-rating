@@ -5,17 +5,6 @@ import Foundation
 /// Use these constants with @AppStorage or UserDefaults directly.
 enum FocalSettings {
 
-    // MARK: - Legacy ensemble keys (unused post-v0.4.0; pruned in Task 12)
-    static let cullStrictness    = "focal.cull.strictness"
-    static let weightTechnical   = "focal.rating.weightTechnical"
-    static let weightAesthetic   = "focal.rating.weightAesthetic"
-    static let weightClip        = "focal.rating.weightClip"
-    static let bucketEdge1       = "focal.rating.bucketEdge1"
-    static let bucketEdge2       = "focal.rating.bucketEdge2"
-    static let bucketEdge3       = "focal.rating.bucketEdge3"
-    static let bucketEdge4       = "focal.rating.bucketEdge4"
-    static let clipLogitScale    = "focal.rating.clipLogitScale"
-
     // MARK: - UI
     /// Default thumbnail cell size in points. Default: 160
     static let defaultCellSize   = "focal.ui.defaultCellSize"
@@ -33,13 +22,8 @@ enum FocalSettings {
     static let defaultAutoWriteXMP: Bool    = true
 
     // MARK: - Migration
-    /// Migrate legacy key written by pre-Focal versions. Call once at app launch.
+    /// Migrate legacy keys written by pre-Focal versions. Call once at app launch.
     static func migrateIfNeeded() {
-        let ud = UserDefaults.standard
-        if ud.object(forKey: "cullStrictness") != nil,
-           ud.object(forKey: cullStrictness) == nil {
-            ud.set(ud.double(forKey: "cullStrictness"), forKey: cullStrictness)
-            ud.removeObject(forKey: "cullStrictness")
-        }
+        // All legacy ensemble/cull keys removed in T11; no active migration logic.
     }
 }
