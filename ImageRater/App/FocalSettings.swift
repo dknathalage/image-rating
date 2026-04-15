@@ -35,39 +35,12 @@ enum FocalSettings {
     static let autoWriteXMP      = "focal.export.autoWriteXMP"
 
     // MARK: - Defaults (backed by FocalSettings+Generated.swift)
-    static var defaultCullStrictness: Double   { generatedCullStrictness }
-    static var defaultWeightTechnical: Double  { generatedWeightTechnical }
-    static var defaultWeightAesthetic: Double  { generatedWeightAesthetic }
-    static var defaultWeightClip: Double       { generatedWeightClip }
-    static var defaultBucketEdge1: Double      { generatedBucketEdge1 }
-    static var defaultBucketEdge2: Double      { generatedBucketEdge2 }
-    static var defaultBucketEdge3: Double      { generatedBucketEdge3 }
-    static var defaultBucketEdge4: Double      { generatedBucketEdge4 }
-    static var defaultClipLogitScale: Double   { generatedClipLogitScale }
-    static let defaultCellSizeValue: Double    = 160
-    static let defaultAutoWriteXMP: Bool       = true
-
-    // MARK: - Resolved accessors (UserDefaults override → default)
-
-    static func resolvedBucketEdges() -> (Double, Double, Double, Double) {
-        let ud = UserDefaults.standard
-        func r(_ key: String, _ d: Double) -> Double {
-            ud.object(forKey: key) != nil ? ud.double(forKey: key) : d
-        }
-        return (
-            r(bucketEdge1, defaultBucketEdge1),
-            r(bucketEdge2, defaultBucketEdge2),
-            r(bucketEdge3, defaultBucketEdge3),
-            r(bucketEdge4, defaultBucketEdge4)
-        )
-    }
-
-    static func resolvedClipLogitScale() -> Double {
-        let ud = UserDefaults.standard
-        return ud.object(forKey: clipLogitScale) != nil
-            ? ud.double(forKey: clipLogitScale)
-            : defaultClipLogitScale
-    }
+    static var defaultMUSIQThreshold1: Float { generatedMUSIQThreshold1 }
+    static var defaultMUSIQThreshold2: Float { generatedMUSIQThreshold2 }
+    static var defaultMUSIQThreshold3: Float { generatedMUSIQThreshold3 }
+    static var defaultMUSIQThreshold4: Float { generatedMUSIQThreshold4 }
+    static let defaultCellSizeValue: Double = 160
+    static let defaultAutoWriteXMP: Bool    = true
 
     // MARK: - Migration
     /// Migrate legacy key written by pre-Focal versions. Call once at app launch.

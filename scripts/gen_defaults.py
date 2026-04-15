@@ -6,11 +6,15 @@ ImageRater/App/FocalSettings+Generated.swift.
 """
 from __future__ import annotations
 import json
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
 PARAMS_PATH = ROOT / "testing" / "bench" / "params.current.json"
 OUT_PATH    = ROOT / "ImageRater" / "App" / "FocalSettings+Generated.swift"
+
+EXPECTED_VERSION = "v0.4.0"
+EXPECTED_MODEL   = "musiq-ava"
 
 
 TEMPLATE = """// Auto-generated from testing/bench/params.current.json. DO NOT EDIT.
@@ -18,39 +22,46 @@ TEMPLATE = """// Auto-generated from testing/bench/params.current.json. DO NOT E
 import Foundation
 
 extension FocalSettings {{
-    static let generatedVersion: String               = "{version}"
-    static let generatedWeightTechnical: Double       = {wTech}
-    static let generatedWeightAesthetic: Double       = {wAes}
-    static let generatedWeightClip: Double            = {wClip}
-    static let generatedCullStrictness: Double        = {strictness}
-    static let generatedBucketEdge1: Double           = {e1}
-    static let generatedBucketEdge2: Double           = {e2}
-    static let generatedBucketEdge3: Double           = {e3}
-    static let generatedBucketEdge4: Double           = {e4}
-    static let generatedClipLogitScale: Double        = {clipLogit}
+    static let generatedVersion: String          = "{version}"
+    static let generatedModel: String            = "{model}"
+    static let generatedMUSIQThreshold1: Float   = {t1}
+    static let generatedMUSIQThreshold2: Float   = {t2}
+    static let generatedMUSIQThreshold3: Float   = {t3}
+    static let generatedMUSIQThreshold4: Float   = {t4}
 }}
 """
 
 
 def _fmt(value: float) -> str:
-    """Render a number as a Swift Double literal (always contains a decimal point)."""
+    """Render number as Swift Float literal (always contains decimal point)."""
     s = repr(float(value))
     return s
 
 
 def main() -> None:
     payload = json.loads(PARAMS_PATH.read_text())
-    p = payload["params"]
-    e = p["bucket_edges"]
+    version = payload.get("version")
+    model = payload.get("model")
+    thresholds = payload.get("thresholds")
+
+    if version != EXPECTED_VERSION:
+        sys.exit(f"version mismatch: expected {EXPECTED_VERSION!r}, got {version!r}")
+    if model != EXPECTED_MODEL:
+        sys.exit(f"model mismatch: expected {EXPECTED_MODEL!r}, got {model!r}")
+    if not isinstance(thresholds, list) or len(thresholds) != 4:
+        sys.exit(f"thresholds must be list of 4 numbers, got {thresholds!r}")
+    for t in thresholds:
+        if not isinstance(t, (int, float)):
+            sys.exit(f"threshold not numeric: {t!r}")
+
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(TEMPLATE.format(
-        version=payload["version"],
-        wTech=_fmt(p["w_tech"]),
-        wAes=_fmt(p["w_aes"]),
-        wClip=_fmt(p["w_clip"]),
-        strictness=_fmt(p["strictness"]),
-        e1=_fmt(e[0]), e2=_fmt(e[1]), e3=_fmt(e[2]), e4=_fmt(e[3]),
-        clipLogit=_fmt(p["clip_logit_scale"]),
+        version=version,
+        model=model,
+        t1=_fmt(thresholds[0]),
+        t2=_fmt(thresholds[1]),
+        t3=_fmt(thresholds[2]),
+        t4=_fmt(thresholds[3]),
     ))
     print(f"wrote {OUT_PATH}")
 
