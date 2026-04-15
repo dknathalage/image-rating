@@ -6,12 +6,19 @@ from scipy.stats import spearmanr
 
 
 def pyiqa_scores(image_dir: Path, limit: int = 100) -> pd.DataFrame:
-    """Run pyiqa MUSIQ-AVA on first `limit` jpgs, return [filename, pyiqa_score]."""
+    """Run pyiqa MUSIQ-AVA on first `limit` jpgs, return [filename, pyiqa_score].
+
+    Reference config matches Swift/CoreML: 2 scales (224, 384), seq_len=193.
+    pyiqa's default enables a 3rd scale (original-res patches via
+    `max_seq_len_from_original_res=-1`); we disable it so the reference
+    matches what CoreML was exported with.
+    """
     import pyiqa
     import torch
 
     metric = pyiqa.create_metric("musiq-ava", device="cpu", as_loss=False)
     metric.eval()
+    metric.net.data_preprocess_opts["max_seq_len_from_original_res"] = None
     files = sorted(image_dir.glob("*.jpg"))[:limit]
     rows = []
     with torch.no_grad():
