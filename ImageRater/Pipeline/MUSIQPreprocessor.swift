@@ -106,10 +106,8 @@ enum MUSIQPreprocessor {
                     for px in 0..<countW {
                         let patchIdx = py * countW + px
                         let dstBase = dstBuf.baseAddress! + patchIdx * rowDim
-                        // For each channel, copy 32 rows of 32 pixels.
                         for c in 0..<channels {
                             let srcChannel = srcBuf.baseAddress! + c * h * w
-                            // dst layout per patch: [C, patch, patch] flattened to rowDim.
                             let dstChannel = dstBase + c * patch * patch
                             for dy in 0..<patch {
                                 let srcY = py * stride + dy - top
