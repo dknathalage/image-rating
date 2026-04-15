@@ -11,7 +11,6 @@ scripts/aesthetic_weights.pth
 
 # Models (distributed via GitHub Releases, not committed)
 /models/
-*.mlpackage
 *.mlpackage.zip
 
 # Xcode
@@ -40,7 +39,12 @@ testing/*
 
 # ML model binaries (large, distribute via releases not git)
 *.mlmodelc/
-ImageRater/MLModels/
+# Ignore every entry inside ImageRater/MLModels/ except the committed MUSIQ-AVA
+# package. Git cannot re-include files below a fully-ignored directory, so we
+# use /* here (matches entries) rather than /  (matches directory itself).
+ImageRater/MLModels/*
+!ImageRater/MLModels/musiq-ava.mlpackage
+!ImageRater/MLModels/musiq-ava.mlpackage/**
 
 # Benchmark Python environment
 testing/bench/.venv/
