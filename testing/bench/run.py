@@ -18,7 +18,6 @@ from bench.dataset_ava import (
     download_images,
 )
 from bench.score import score_with_cache
-from bench.musiq_scorer import score_musiq_with_cache
 from bench.metrics import compute_metrics
 from bench.leaderboard import regenerate_leaderboard
 from bench.single_model import bucket_stars, optimize_thresholds, stars_from_thresholds
@@ -88,11 +87,6 @@ def _load_dataset() -> tuple[pd.DataFrame, pd.DataFrame]:
     labels = pd.read_csv(DATA_DIR / "ava" / "labels.csv")
     bin_ = locate_scorer_bin()
     scores = score_with_cache(bin_, DATA_DIR / "ava" / "images", CACHE_DIR)
-    # Task 10 runs before Task 11: FocalScorer still emits legacy columns here.
-    # Override with Python pyiqa MUSIQ as authoritative source for benches.
-    # Task 11 rewrites FocalScorer to emit musiqAesthetic; simplify then.
-    musiq = score_musiq_with_cache(DATA_DIR / "ava" / "images", CACHE_DIR)
-    scores = scores[["filename"]].merge(musiq, on="filename", how="inner")
     return scores, labels
 
 

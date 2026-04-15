@@ -51,11 +51,14 @@ def optimize_thresholds(
     y = df["gt_stars"].to_numpy().astype(int)
     lo, hi = float(s.min()), float(s.max())
 
+    # Reserve ε budget so t2/t3 always have a valid upper bound. 4 thresholds
+    # spaced by at least 1e-3 need (hi - lo) ≥ 4e-3 to fit.
+    eps = 1e-3
     def objective(trial):
-        t1 = trial.suggest_float("t1", lo, hi)
-        t2 = trial.suggest_float("t2", t1 + 1e-3, hi)
-        t3 = trial.suggest_float("t3", t2 + 1e-3, hi)
-        t4 = trial.suggest_float("t4", t3 + 1e-3, hi)
+        t1 = trial.suggest_float("t1", lo, hi - 3 * eps)
+        t2 = trial.suggest_float("t2", t1 + eps, hi - 2 * eps)
+        t3 = trial.suggest_float("t3", t2 + eps, hi - eps)
+        t4 = trial.suggest_float("t4", t3 + eps, hi)
         pred = stars_from_thresholds(s, (t1, t2, t3, t4))
         m = compute_metrics(y, pred)
         return -m.spearman + 0.2 * m.mae

@@ -2,6 +2,11 @@
   "version": "v0.4.0",
   "date": "2026-04-15",
   "model": "musiq-ava",
-  "notes": "single-model rating; CoreML on-device",
-  "thresholds": [4.465, 5.181, 5.634, 6.068]
+  "notes": "optuna TPE 500 trials (thresholds only)",
+  "thresholds": [
+    4.884727222784211,
+    5.308878348894639,
+    5.620863850128092,
+    6.10825403568988
+  ]
 }
