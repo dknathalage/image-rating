@@ -19,6 +19,7 @@ from bench.dataset_ava import (
     download_images,
 )
 from bench.score import score_with_cache
+from bench.musiq_scorer import score_musiq_with_cache
 from bench.clip_iqa import clip_iqa_score, load_prompt_embeddings
 from bench.ensemble import EnsembleParams, stars_from_subscores
 from bench.metrics import compute_metrics
@@ -106,6 +107,16 @@ def _load_dataset() -> tuple[pd.DataFrame, pd.DataFrame]:
     labels = pd.read_csv(DATA_DIR / "ava" / "labels.csv")
     bin_ = locate_scorer_bin()
     scores = score_with_cache(bin_, DATA_DIR / "ava" / "images", CACHE_DIR)
+
+    # Aesthetic model swap: MUSIQ-AVA replaces TOPIQ-aesthetic (rho 0.78 vs 0.13).
+    # Set FOCAL_BENCH_AESTHETIC=topiq to retain legacy TOPIQ-aesthetic.
+    if os.environ.get("FOCAL_BENCH_AESTHETIC", "musiq").lower() == "musiq":
+        musiq = score_musiq_with_cache(DATA_DIR / "ava" / "images", CACHE_DIR)
+        scores = scores.drop(columns=["topiqAesthetic"]).merge(
+            musiq.rename(columns={"musiqAesthetic": "topiqAesthetic"}),
+            on="filename",
+            how="inner",
+        )
     return scores, labels
 
 

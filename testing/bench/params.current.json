@@ -1,14 +1,19 @@
 {
-  "version": "v0.1.0",
+  "version": "v0.3.0",
   "date": "2026-04-15",
   "ensemble": ["tech", "aes", "clip"],
-  "notes": "initial defaults (pre-tuning)",
+  "notes": "MUSIQ-AVA aesthetic swap; optuna TPE 200 trials (rho 0.769)",
   "params": {
-    "w_tech": 0.4,
-    "w_aes": 0.4,
-    "w_clip": 0.2,
-    "strictness": 0.5,
-    "bucket_edges": [0.2, 0.4, 0.6, 0.8],
+    "w_tech": 0.06435921429478782,
+    "w_aes": 0.839623338699796,
+    "w_clip": 0.01746598987575656,
+    "strictness": 0.6261586985494696,
+    "bucket_edges": [
+      0.05915043482065285,
+      0.2587711072780688,
+      0.4982934110480122,
+      0.6855656772887297
+    ],
     "clip_logit_scale": 100.0
   }
 }
