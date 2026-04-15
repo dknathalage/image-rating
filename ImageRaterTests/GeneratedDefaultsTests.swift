@@ -10,10 +10,13 @@ final class GeneratedDefaultsTests: XCTestCase {
         XCTAssertLessThan(t1, t2)
         XCTAssertLessThan(t2, t3)
         XCTAssertLessThan(t3, t4)
-        XCTAssertTrue((1.0...10.0).contains(Double(t1)), "t1 out of MUSIQ range")
-        XCTAssertTrue((1.0...10.0).contains(Double(t4)), "t4 out of MUSIQ range")
+        XCTAssertTrue((2.0...8.0).contains(Double(t1)), "t1 out of MUSIQ range")
+        XCTAssertTrue((2.0...8.0).contains(Double(t4)), "t4 out of MUSIQ range")
     }
     func test_version_matches_params_current_json() {
         XCTAssertEqual(FocalSettings.generatedVersion, "v0.4.0")
+    }
+    func test_model_is_musiq_ava() {
+        XCTAssertEqual(FocalSettings.generatedModel, "musiq-ava")
     }
 }

@@ -5,25 +5,15 @@ import Foundation
 /// Use these constants with @AppStorage or UserDefaults directly.
 enum FocalSettings {
 
-    // MARK: - Cull
-    /// Percentile strictness for star assignment (0.0 = lenient, 1.0 = strict). Default: 0.5
+    // MARK: - Legacy ensemble keys (unused post-v0.4.0; pruned in Task 12)
     static let cullStrictness    = "focal.cull.strictness"
-
-    // MARK: - Rating model weights
-    /// Weight for TOPIQ Technical score. Default: 0.4
     static let weightTechnical   = "focal.rating.weightTechnical"
-    /// Weight for TOPIQ Aesthetic score. Default: 0.4
     static let weightAesthetic   = "focal.rating.weightAesthetic"
-    /// Weight for CLIP-IQA score. Default: 0.2
     static let weightClip        = "focal.rating.weightClip"
-
-    // MARK: - Star bucket edges (percentile cut-points in warped space)
     static let bucketEdge1       = "focal.rating.bucketEdge1"
     static let bucketEdge2       = "focal.rating.bucketEdge2"
     static let bucketEdge3       = "focal.rating.bucketEdge3"
     static let bucketEdge4       = "focal.rating.bucketEdge4"
-
-    // MARK: - CLIP-IQA softmax temperature
     static let clipLogitScale    = "focal.rating.clipLogitScale"
 
     // MARK: - UI

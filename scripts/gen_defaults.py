@@ -53,6 +53,8 @@ def main() -> None:
     for t in thresholds:
         if not isinstance(t, (int, float)):
             sys.exit(f"threshold not numeric: {t!r}")
+    if thresholds != sorted(thresholds) or len(set(thresholds)) != 4:
+        sys.exit(f"thresholds must be strictly increasing, got {thresholds}")
 
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUT_PATH.write_text(TEMPLATE.format(
