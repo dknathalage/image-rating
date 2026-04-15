@@ -92,7 +92,7 @@ final class MUSIQPreprocessorTests: XCTestCase {
         let src = loadTensor("img_500x400")
         let expected = loadTensor("patch_tensor_500x400")
 
-        let tensor = try MUSIQPreprocessor.patchTensorFromNormalizedPixels(
+        let tensor = try MUSIQPreprocessor.patchTensor(
             pixels: src, h: 500, w: 400, channels: 3
         )
         XCTAssertEqual(tensor.shape.map { $0.intValue }, [1, 193, 3075])
@@ -109,7 +109,7 @@ final class MUSIQPreprocessorTests: XCTestCase {
     func test_patchTensor_image_too_small_throws() {
         let src = [Float](repeating: 0.5, count: 3 * 20 * 30)
         XCTAssertThrowsError(
-            try MUSIQPreprocessor.patchTensorFromNormalizedPixels(
+            try MUSIQPreprocessor.patchTensor(
                 pixels: src, h: 20, w: 30, channels: 3
             )
         ) { err in

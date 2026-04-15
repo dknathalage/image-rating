@@ -168,9 +168,10 @@ enum MUSIQPreprocessor {
     static let seqLen: Int = 193
     static let rowDim: Int = 32 * 32 * 3 + 3   // 3075
 
-    /// Build patch tensor from normalized planar RGB pixels in `[-1, 1]`.
-    /// Input layout: channel-major `[C, H, W]`.
-    static func patchTensorFromNormalizedPixels(
+    /// Build MUSIQ patch tensor from planar RGB pixels.
+    /// Input layout: channel-major [C, H, W] flattened.
+    /// Caller is responsible for any normalization before calling.
+    static func patchTensor(
         pixels: [Float], h: Int, w: Int, channels: Int
     ) throws -> MLMultiArray {
         guard max(h, w) >= patchSize else { throw RatingError.imageTooSmall }
@@ -206,7 +207,7 @@ enum MUSIQPreprocessor {
             }
             rowOffset += maxSeqLen
         }
-        assert(rowOffset == seqLen, "rowOffset \(rowOffset) != seqLen \(seqLen)")
+        precondition(rowOffset == seqLen, "rowOffset \(rowOffset) != seqLen \(seqLen)")
         return tensor
     }
 }
