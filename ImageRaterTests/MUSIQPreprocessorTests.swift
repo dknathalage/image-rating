@@ -78,4 +78,13 @@ final class MUSIQPreprocessorTests: XCTestCase {
         for (a, b) in zip(patches, expected) { maxDelta = max(maxDelta, abs(a - b)) }
         XCTAssertLessThan(maxDelta, 1e-5)
     }
+
+    func test_hashSpatialPositions_7x5_matches_pyiqa() {
+        let expected = loadTensor("hsp_7x5")  // [1, 35]
+        let out = MUSIQPreprocessor.hashSpatialPositions(countH: 7, countW: 5, gridSize: 10)
+        XCTAssertEqual(out.count, 35)
+        for (a, b) in zip(out, expected) {
+            XCTAssertEqual(a, b, accuracy: 0.0)  // integer indices — exact
+        }
+    }
 }

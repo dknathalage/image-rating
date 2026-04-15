@@ -128,4 +128,34 @@ enum MUSIQPreprocessor {
         }
         return (out, countH, countW)
     }
+
+    // MARK: - Hash spatial positions (grid_size=10)
+
+    /// Nearest-interp [0..gridSize-1] to `count`, then flatten count_h × count_w
+    /// into grid_size-based hash `h * gridSize + w`. Matches pyiqa's
+    /// F.interpolate(mode='nearest').
+    ///
+    /// Nearest-interp formula PyTorch uses (align_corners irrelevant for nearest):
+    /// index[i] = floor(i * in_size / out_size) for out_size ≥ in_size.
+    /// For grid=10, count=7: indices = [0, 1, 2, 4, 5, 7, 8] (from floor(i * 10 / 7)).
+    static func hashSpatialPositions(countH: Int, countW: Int, gridSize: Int) -> [Float] {
+        let posH = nearestInterp(count: countH, gridSize: gridSize)
+        let posW = nearestInterp(count: countW, gridSize: gridSize)
+        var out = [Float](repeating: 0, count: countH * countW)
+        for i in 0..<countH {
+            for j in 0..<countW {
+                out[i * countW + j] = Float(posH[i] * gridSize + posW[j])
+            }
+        }
+        return out
+    }
+
+    private static func nearestInterp(count: Int, gridSize: Int) -> [Int] {
+        // PyTorch F.interpolate(mode='nearest'): index = floor(i * in / out)
+        var out = [Int](repeating: 0, count: count)
+        for i in 0..<count {
+            out[i] = (i * gridSize) / count
+        }
+        return out
+    }
 }
