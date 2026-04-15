@@ -1,12 +1,12 @@
 // ImageRater/Pipeline/MUSIQPreprocessor.swift
 import Foundation
-import CoreML
 
 enum MUSIQPreprocessor {
 
     // MARK: - Bicubic resize (matches PyTorch F.interpolate mode='bicubic', align_corners=False)
 
-    /// Cubic convolution kernel (Keys 1981) with a=-0.75, PyTorch's actual default bicubic.
+    /// Cubic kernel (Keys 1981), a=-0.75. PyTorch default in
+    /// aten/src/ATen/native/UpSampleBicubic2d.cpp (not -0.5 as plan stated).
     private static func cubicKernel(_ x: Float) -> Float {
         let a: Float = -0.75
         let ax = abs(x)
