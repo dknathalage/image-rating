@@ -1,6 +1,7 @@
 """Converter determinism test — same seed, identical weight blob."""
 from __future__ import annotations
 import hashlib
+import os
 import subprocess
 from pathlib import Path
 
@@ -10,22 +11,26 @@ CONVERT = ROOT / "scripts" / "convert_musiq.py"
 OUT = ROOT / "ImageRater" / "MLModels" / "musiq-ava.mlpackage"
 WEIGHTS = OUT / "Data" / "com.apple.CoreML" / "weights" / "weight.bin"
 
-# python3.12 has pre-built coremltools wheels with native libs (libmilstoragepython.so).
-# python3 on this system maps to 3.14 which installs from source without those libs.
-PYTHON = "python3.12"
+# coremltools distributes pre-built wheels (with native libs libcoremlpython
+# and libmilstoragepython) only for Python versions up to 3.12.  On newer
+# interpreters pip falls back to the source tarball and the native extensions
+# are not built, which makes `MLModel.save` for mlprogram fail with
+# "BlobWriter not loaded".  Default to python3.12; allow override via env.
+PYTHON = os.environ.get("MUSIQ_PYTHON", "python3.12")
 
 
 def _weight_hash(path: Path) -> str:
-    """SHA-256 of the weight blob — this is the functionally meaningful artifact.
+    """SHA-256 of the weight blob — the functionally meaningful artifact.
 
-    The MIL proto (model.mlmodel) has non-deterministic map-field serialization
-    ordering in protobuf-python, so its byte hash varies even when the model is
-    identical.  The weight.bin is fully deterministic given fixed seeds.
+    The MIL proto (model.mlmodel) has non-deterministic map-field
+    serialization ordering in protobuf-python, so its byte hash varies even
+    when the model is identical.  weight.bin is fully deterministic given
+    fixed seeds, so hashing it gives a stable bit-for-bit determinism check.
     """
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def test_convert_musiq_deterministic(tmp_path):
+def test_convert_musiq_deterministic():
     subprocess.check_call([PYTHON, str(CONVERT)])
     h1 = _weight_hash(WEIGHTS)
     subprocess.check_call([PYTHON, str(CONVERT)])

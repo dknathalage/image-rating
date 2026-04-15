@@ -7,6 +7,7 @@ scale 384, each row = 3072 pixel values + [spatial_pos, scale_id, mask]).
 Writes: ImageRater/MLModels/musiq-ava.mlpackage (committed into Xcode project).
 """
 from __future__ import annotations
+import shutil
 import sys
 from pathlib import Path
 
@@ -27,10 +28,7 @@ import pyiqa
 # Removing this shim once coremltools ships a fix is safe.
 # ---------------------------------------------------------------------------
 import coremltools.converters.mil.frontend.torch.ops as _ct_ops
-import coremltools.converters.mil.mil.builder as _mb_mod
 from coremltools.converters.mil.mil import Builder as mb
-
-_orig_cast = _ct_ops._cast.__wrapped__ if hasattr(_ct_ops._cast, "__wrapped__") else None
 
 
 def _patched_cast(context, node, dtype, dtype_name):
@@ -150,10 +148,10 @@ def main():
 
     OUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     if OUT_PATH.exists():
-        import shutil
         shutil.rmtree(OUT_PATH)
     mlmodel.save(str(OUT_PATH))
     print(f"Wrote {OUT_PATH}", flush=True)
+    return 0
 
 
 if __name__ == "__main__":

@@ -43,6 +43,9 @@ testing/*
 # package. Git cannot re-include files below a fully-ignored directory, so we
 # use /* here (matches entries) rather than /  (matches directory itself).
 ImageRater/MLModels/*
+# Two negation lines required: the first un-ignores the .mlpackage directory
+# entry itself so git descends into it; the second un-ignores every file
+# inside it.  Either line alone leaves the package partially ignored.
 !ImageRater/MLModels/musiq-ava.mlpackage
 !ImageRater/MLModels/musiq-ava.mlpackage/**
 
