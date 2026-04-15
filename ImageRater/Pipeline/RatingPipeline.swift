@@ -23,10 +23,10 @@ struct CoreMLMUSIQ: MUSIQInferring {
     let model: MLModel
 
     func predict(patchTensor: MLMultiArray) async throws -> Float {
-        let input = try MLDictionaryFeatureProvider(dictionary: ["patches": patchTensor])
+        let input = try MLDictionaryFeatureProvider(dictionary: ["patch_tensor": patchTensor])
         let out = try await model.prediction(from: input)
         for name in out.featureNames {
-            if let arr = out.featureValue(for: name)?.multiArrayValue {
+            if let arr = out.featureValue(for: name)?.multiArrayValue, arr.count > 0 {
                 return arr[0].floatValue
             }
             if let d = out.featureValue(for: name)?.doubleValue {
