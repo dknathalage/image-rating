@@ -95,7 +95,7 @@ final class MUSIQPreprocessorTests: XCTestCase {
         let tensor = try MUSIQPreprocessor.patchTensor(
             pixels: src, h: 500, w: 400, channels: 3
         )
-        XCTAssertEqual(tensor.shape.map { $0.intValue }, [1, 193, 3075])
+        XCTAssertEqual(tensor.shape.map { $0.intValue }, [1, 705, 3075])
         XCTAssertEqual(tensor.dataType, .float32)
 
         let ptr = tensor.dataPointer.bindMemory(to: Float.self, capacity: tensor.count)
@@ -130,6 +130,6 @@ final class MUSIQPreprocessorTests: XCTestCase {
         ctx.fill(CGRect(x: 0, y: 0, width: 64, height: 64))
         let cg = ctx.makeImage()!
         let tensor = try MUSIQPreprocessor.patchTensor(cgImage: cg)
-        XCTAssertEqual(tensor.shape.map { $0.intValue }, [1, 193, 3075])
+        XCTAssertEqual(tensor.shape.map { $0.intValue }, [1, 705, 3075])
     }
 }

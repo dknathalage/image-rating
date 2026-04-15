@@ -167,8 +167,9 @@ enum MUSIQPreprocessor {
     static let scales: [Int] = [224, 384]
     static let patchSize: Int = 32
     static let gridSize: Int = 10
-    static let seqLen: Int = 193
-    static let rowDim: Int = 32 * 32 * 3 + 3   // 3075
+    static let origResMaxSeqLen: Int = 512
+    static let seqLen: Int = 49 + 144 + origResMaxSeqLen    // 705
+    static let rowDim: Int = 32 * 32 * 3 + 3                // 3075
 
     /// Build MUSIQ patch tensor from planar RGB pixels.
     /// Input layout: channel-major [C, H, W] flattened.
@@ -209,6 +210,25 @@ enum MUSIQPreprocessor {
             }
             rowOffset += maxSeqLen
         }
+        // Scale 2: original resolution, truncated/padded to origResMaxSeqLen rows
+        let (origPatches, origCountH, origCountW) = unfoldPatches(
+            pixels: pixels, h: h, w: w, channels: channels, patch: patchSize
+        )
+        let origPositions = hashSpatialPositions(countH: origCountH, countW: origCountW, gridSize: gridSize)
+        let origActiveN = min(origCountH * origCountW, origResMaxSeqLen)
+        let patchDimOrig = channels * patchSize * patchSize
+        origPatches.withUnsafeBufferPointer { patchesBuf in
+            for i in 0..<origActiveN {
+                let dst = tPtr + (rowOffset + i) * rowDim
+                let patchSrc = patchesBuf.baseAddress! + i * patchDimOrig
+                dst.update(from: patchSrc, count: patchDimOrig)
+                dst[patchDimOrig] = origPositions[i]
+                dst[patchDimOrig + 1] = Float(2)   // scaleId = 2
+                dst[patchDimOrig + 2] = 1.0
+            }
+        }
+        rowOffset += origResMaxSeqLen
+
         precondition(rowOffset == seqLen, "rowOffset \(rowOffset) != seqLen \(seqLen)")
         return tensor
     }
