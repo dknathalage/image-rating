@@ -25,13 +25,14 @@ struct CoreMLMUSIQ: MUSIQInferring {
     func predict(patchTensor: MLMultiArray) async throws -> Float {
         let input = try MLDictionaryFeatureProvider(dictionary: ["patch_tensor": patchTensor])
         let out = try await model.prediction(from: input)
-        for name in out.featureNames {
-            if let arr = out.featureValue(for: name)?.multiArrayValue, arr.count > 0 {
-                return arr[0].floatValue
-            }
-            if let d = out.featureValue(for: name)?.doubleValue {
-                return Float(d)
-            }
+        guard let feature = out.featureValue(for: "mos") else {
+            throw RatingError.inferenceOutputMismatch
+        }
+        if let arr = feature.multiArrayValue, arr.count > 0 {
+            return arr[0].floatValue
+        }
+        if feature.type == .double {
+            return Float(feature.doubleValue)
         }
         throw RatingError.inferenceOutputMismatch
     }
