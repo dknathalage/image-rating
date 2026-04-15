@@ -34,18 +34,18 @@ enum FocalSettings {
     /// Write XMP sidecar automatically on every manual rating. Default: true
     static let autoWriteXMP      = "focal.export.autoWriteXMP"
 
-    // MARK: - Default values
-    static let defaultCullStrictness: Double  = 0.5
-    static let defaultWeightTechnical: Double = 0.4
-    static let defaultWeightAesthetic: Double = 0.4
-    static let defaultWeightClip: Double      = 0.2
-    static let defaultBucketEdge1: Double     = 0.20
-    static let defaultBucketEdge2: Double     = 0.40
-    static let defaultBucketEdge3: Double     = 0.60
-    static let defaultBucketEdge4: Double     = 0.80
-    static let defaultClipLogitScale: Double  = 100.0
-    static let defaultCellSizeValue: Double   = 160
-    static let defaultAutoWriteXMP: Bool      = true
+    // MARK: - Defaults (backed by FocalSettings+Generated.swift)
+    static var defaultCullStrictness: Double   { generatedCullStrictness }
+    static var defaultWeightTechnical: Double  { generatedWeightTechnical }
+    static var defaultWeightAesthetic: Double  { generatedWeightAesthetic }
+    static var defaultWeightClip: Double       { generatedWeightClip }
+    static var defaultBucketEdge1: Double      { generatedBucketEdge1 }
+    static var defaultBucketEdge2: Double      { generatedBucketEdge2 }
+    static var defaultBucketEdge3: Double      { generatedBucketEdge3 }
+    static var defaultBucketEdge4: Double      { generatedBucketEdge4 }
+    static var defaultClipLogitScale: Double   { generatedClipLogitScale }
+    static let defaultCellSizeValue: Double    = 160
+    static let defaultAutoWriteXMP: Bool       = true
 
     // MARK: - Resolved accessors (UserDefaults override → default)
 

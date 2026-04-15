@@ -32,6 +32,13 @@ targets:
         OTHER_LDFLAGS: "-lraw"
         HEADER_SEARCH_PATHS: "/opt/homebrew/include"
         LIBRARY_SEARCH_PATHS: "/opt/homebrew/lib"
+    preBuildScripts:
+      - name: Regenerate FocalSettings+Generated.swift
+        script: |
+          cd "$PROJECT_DIR"
+          /usr/bin/env python3 scripts/gen_defaults.py
+        outputFiles:
+          - $(SRCROOT)/ImageRater/App/FocalSettings+Generated.swift
     dependencies: []
   FocalTests:
     type: bundle.unit-test

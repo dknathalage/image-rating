@@ -34,6 +34,7 @@
 		54AA0E3DFE90F67ED1F1C676 /* clip-vision.mlmodelc in Resources */ = {isa = PBXBuildFile; fileRef = 3DF4D05EC0B0F1D46821C514 /* clip-vision.mlmodelc */; };
 		686FFCA2930D7389AE33B38B /* CLIPTextEmbeddings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 931A662D8708DC59CCFD9D45 /* CLIPTextEmbeddings.swift */; };
 		68FDFBAB546EEA75E3397146 /* ImageRaterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB6256ED26D1B824EFD44702 /* ImageRaterTests.swift */; };
+		70EC2385F73421677F40CAFB /* FocalSettings+Generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACA2A2C374F227DBE7FC0900 /* FocalSettings+Generated.swift */; };
 		721F5F52FC6BE66FF50FB58E /* MetadataWriterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B0BCEC4AA9DD6164F4B9683 /* MetadataWriterTests.swift */; };
 		75B45A62C0D7F902ECE2CD15 /* CullResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBF2EF9D9BDCF8F354C405F0 /* CullResult.swift */; };
 		76BB5026D94220FAF50F7E10 /* RatingQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = B91E21321E7E3EECDC34D774 /* RatingQueue.swift */; };
@@ -53,6 +54,7 @@
 		C13BD4226423920FD18284B1 /* ModelDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3002E6A92686ED9A4EBE2AB1 /* ModelDownloader.swift */; };
 		C88283CA8CCACBEA5765C33F /* ProcessingQueue.swift in Sources */ = {isa = PBXBuildFile; fileRef = 888E293F04774E0A2F8CEED2 /* ProcessingQueue.swift */; };
 		CD23664BA06F927447D72C7C /* IntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F26BEECA4A4391E745260A11 /* IntegrationTests.swift */; };
+		D190492BB863F43FC71321FC /* GeneratedDefaultsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56B55523E17CCA542C54FB37 /* GeneratedDefaultsTests.swift */; };
 		D97D4C0F60EF6F8B60233DFE /* FocalScorerMain.swift in Sources */ = {isa = PBXBuildFile; fileRef = 976A10F5A991BE314CAF87A2 /* FocalScorerMain.swift */; };
 		DACEA99B5F2D8F5FB11BB3A5 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 198583860C498ACDEEF9AA37 /* ContentView.swift */; };
 		DFB00E9AFF49E625CB70F573 /* topiq-nr.mlmodelc in Resources */ = {isa = PBXBuildFile; fileRef = 873809ECDAE854C063714A0D /* topiq-nr.mlmodelc */; };
@@ -91,6 +93,7 @@
 		447E7BF1F25AEAE527F9CBD4 /* Focal.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Focal.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		4572B7C1E79C4A824320228E /* ImageRater.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = ImageRater.xcdatamodel; sourceTree = "<group>"; };
 		465FC7BFD1F5CABCE2B69B31 /* LibRawBridge.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LibRawBridge.h; sourceTree = "<group>"; };
+		56B55523E17CCA542C54FB37 /* GeneratedDefaultsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneratedDefaultsTests.swift; sourceTree = "<group>"; };
 		592B32171BC756561B14E8CF /* DetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailView.swift; sourceTree = "<group>"; };
 		5C32B4A5EA3A47162823B356 /* ModelStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelStore.swift; sourceTree = "<group>"; };
 		5F025EE92307FBB1A6C2D3EE /* sharp.jpg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = sharp.jpg; sourceTree = "<group>"; };
@@ -114,6 +117,7 @@
 		A2F95AD0B81BDE3DEBFE5290 /* DiversityScorerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiversityScorerTests.swift; sourceTree = "<group>"; };
 		A846EFACFE14AF5FF4E7C094 /* FocalScorerSmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocalScorerSmokeTests.swift; sourceTree = "<group>"; };
 		AB6256ED26D1B824EFD44702 /* ImageRaterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageRaterTests.swift; sourceTree = "<group>"; };
+		ACA2A2C374F227DBE7FC0900 /* FocalSettings+Generated.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FocalSettings+Generated.swift"; sourceTree = "<group>"; };
 		AE8D76CC96A770503706BA1F /* ImageRaterApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageRaterApp.swift; sourceTree = "<group>"; };
 		B275DBC9861ED0BDAF120856 /* LibRawBridge.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = LibRawBridge.mm; sourceTree = "<group>"; };
 		B5902F05227A7EB00A2E4998 /* ImageRecordMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageRecordMigrationTests.swift; sourceTree = "<group>"; };
@@ -177,6 +181,7 @@
 			children = (
 				198583860C498ACDEEF9AA37 /* ContentView.swift */,
 				0D76442A9913CC9DD613080D /* FocalSettings.swift */,
+				ACA2A2C374F227DBE7FC0900 /* FocalSettings+Generated.swift */,
 				AE8D76CC96A770503706BA1F /* ImageRaterApp.swift */,
 			);
 			path = App;
@@ -227,6 +232,7 @@
 				A2F95AD0B81BDE3DEBFE5290 /* DiversityScorerTests.swift */,
 				C898107ADE75EBCA053E54AD /* ExportPromptEmbeddings.swift */,
 				A846EFACFE14AF5FF4E7C094 /* FocalScorerSmokeTests.swift */,
+				56B55523E17CCA542C54FB37 /* GeneratedDefaultsTests.swift */,
 				CDBCCC854C552DCEFE1F8043 /* ImageImporterGroupingTests.swift */,
 				AB6256ED26D1B824EFD44702 /* ImageRaterTests.swift */,
 				B5902F05227A7EB00A2E4998 /* ImageRecordMigrationTests.swift */,
@@ -368,6 +374,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 153F605D0BBF9FEB03771D34 /* Build configuration list for PBXNativeTarget "Focal" */;
 			buildPhases = (
+				BA313921D8AFDB6376F491ED /* Regenerate FocalSettings+Generated.swift */,
 				173E76B627C7F2A35AF007C6 /* Sources */,
 				B03A0A7D50029B947A8703FA /* Resources */,
 			);
@@ -458,6 +465,25 @@
 			shellPath = /bin/sh;
 			shellScript = "set -e\nSRC=\"$SRCROOT/ImageRater/MLModels\"\nDEST=\"$TARGET_BUILD_DIR\"\nfor m in topiq-nr topiq-swin clip-vision; do\n  if [ -d \"$SRC/$m.mlmodelc\" ]; then\n    rm -rf \"$DEST/$m.mlmodelc\"\n    cp -R \"$SRC/$m.mlmodelc\" \"$DEST/$m.mlmodelc\"\n  fi\ndone\n";
 		};
+		BA313921D8AFDB6376F491ED /* Regenerate FocalSettings+Generated.swift */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Regenerate FocalSettings+Generated.swift";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(SRCROOT)/ImageRater/App/FocalSettings+Generated.swift",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "cd \"$PROJECT_DIR\"\n/usr/bin/env python3 scripts/gen_defaults.py\n";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -471,6 +497,7 @@
 				75B45A62C0D7F902ECE2CD15 /* CullResult.swift in Sources */,
 				AA4F452486AFB3228199079E /* DetailView.swift in Sources */,
 				AAF6A01F23B8462ECACDDEC0 /* DiversityScorer.swift in Sources */,
+				70EC2385F73421677F40CAFB /* FocalSettings+Generated.swift in Sources */,
 				8CA3DF7E930703084BB8568E /* FocalSettings.swift in Sources */,
 				AF5037C13064861AF75F5B6A /* GridView.swift in Sources */,
 				970AD203434B479C5DCE02BE /* ImageImporter.swift in Sources */,
@@ -506,6 +533,7 @@
 				B2C452ECE3DDFBB0F1B338A6 /* DiversityScorerTests.swift in Sources */,
 				A24016934F893B66BF451F42 /* ExportPromptEmbeddings.swift in Sources */,
 				4A780030150413BE598AFD6E /* FocalScorerSmokeTests.swift in Sources */,
+				D190492BB863F43FC71321FC /* GeneratedDefaultsTests.swift in Sources */,
 				549F541C42C92BB2D7337BCB /* ImageImporterGroupingTests.swift in Sources */,
 				68FDFBAB546EEA75E3397146 /* ImageRaterTests.swift in Sources */,
 				3DB9A881385BB8D116A1D7D1 /* ImageRecordMigrationTests.swift in Sources */,
