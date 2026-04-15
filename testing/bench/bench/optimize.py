@@ -24,6 +24,27 @@ class OptimizationResult:
     study: optuna.Study
 
 
+def result_to_params_dict(result: OptimizationResult, ensemble: list[str], notes: str, date: str) -> dict:
+    """Serialise OptimizationResult → params.json payload for leaderboard."""
+    return {
+        "ensemble": ensemble,
+        "notes": notes,
+        "date": date,
+        "params": {
+            "w_tech": result.params.w_tech,
+            "w_aes":  result.params.w_aes,
+            "w_clip": result.params.w_clip,
+            "strictness": result.params.strictness,
+            "bucket_edges": list(result.params.bucket_edges),
+        },
+    }
+
+
+def result_to_metrics_dict(result: OptimizationResult) -> dict:
+    """Serialise OptimizationResult.metrics → metrics.json payload."""
+    return {"val": result.metrics.to_dict()}
+
+
 def _objective_factory(
     tech: np.ndarray, aes: np.ndarray, clip: np.ndarray, gt: np.ndarray, space: SearchSpace
 ):
