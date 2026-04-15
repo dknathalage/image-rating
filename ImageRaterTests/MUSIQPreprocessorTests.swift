@@ -62,4 +62,20 @@ final class MUSIQPreprocessorTests: XCTestCase {
         for (a, b) in zip(resized, expected) { maxDelta = max(maxDelta, abs(a - b)) }
         XCTAssertLessThan(maxDelta, 5e-3)
     }
+
+    func test_unfoldPatches_64x64_produces_4_patches() {
+        let src = loadTensor("img_64x64")            // [1, 3, 64, 64]
+        let expected = loadTensor("unfold_64x64")    // [1, 4, 3072]
+
+        let (patches, countH, countW) = MUSIQPreprocessor.unfoldPatches(
+            pixels: src, h: 64, w: 64, channels: 3, patch: 32
+        )
+        XCTAssertEqual(countH, 2)
+        XCTAssertEqual(countW, 2)
+        XCTAssertEqual(patches.count, 4 * 3072)
+
+        var maxDelta: Float = 0
+        for (a, b) in zip(patches, expected) { maxDelta = max(maxDelta, abs(a - b)) }
+        XCTAssertLessThan(maxDelta, 1e-5)
+    }
 }

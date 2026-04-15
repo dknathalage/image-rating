@@ -82,4 +82,52 @@ enum MUSIQPreprocessor {
         }
         return (out, rh, rw)
     }
+
+    // MARK: - Patch unfold (32×32 stride-32 with TF-SAME padding)
+
+    /// TF-SAME padding: output count = ceil(input / stride). Extra pixel on bottom/right.
+    static func unfoldPatches(
+        pixels: [Float], h: Int, w: Int, channels: Int, patch: Int
+    ) -> (patches: [Float], countH: Int, countW: Int) {
+        let stride = patch
+        let countH = (h + stride - 1) / stride
+        let countW = (w + stride - 1) / stride
+        let padH = (countH - 1) * stride + patch - h     // ≥ 0
+        let padW = (countW - 1) * stride + patch - w
+        let top = padH / 2, left = padW / 2              // matches pyiqa F.pad ordering
+
+        let numPatches = countH * countW
+        let rowDim = channels * patch * patch
+        var out = [Float](repeating: 0, count: numPatches * rowDim)
+
+        pixels.withUnsafeBufferPointer { srcBuf in
+            out.withUnsafeMutableBufferPointer { dstBuf in
+                for py in 0..<countH {
+                    for px in 0..<countW {
+                        let patchIdx = py * countW + px
+                        let dstBase = dstBuf.baseAddress! + patchIdx * rowDim
+                        // For each channel, copy 32 rows of 32 pixels.
+                        for c in 0..<channels {
+                            let srcChannel = srcBuf.baseAddress! + c * h * w
+                            // dst layout per patch: [C, patch, patch] flattened to rowDim.
+                            let dstChannel = dstBase + c * patch * patch
+                            for dy in 0..<patch {
+                                let srcY = py * stride + dy - top
+                                for dx in 0..<patch {
+                                    let srcX = px * stride + dx - left
+                                    let dstIdx = dy * patch + dx
+                                    if srcY >= 0 && srcY < h && srcX >= 0 && srcX < w {
+                                        dstChannel[dstIdx] = srcChannel[srcY * w + srcX]
+                                    } else {
+                                        dstChannel[dstIdx] = 0
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return (out, countH, countW)
+    }
 }
