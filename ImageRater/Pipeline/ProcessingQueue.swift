@@ -136,7 +136,6 @@ actor ProcessingQueue {
             let groupID: String?
             let overrideStars: Int?
             let ratingStars: Int
-            let decodeError: Bool
         }
 
         let entries: [Entry] = await context.perform { [self] in
@@ -150,8 +149,7 @@ actor ProcessingQueue {
                         filePath: r.filePath,
                         groupID: r.groupID,
                         overrideStars: r.userOverride.map { Int($0.int16Value) },
-                        ratingStars: Int(r.ratingStars?.int16Value ?? 0),
-                        decodeError: r.decodeError
+                        ratingStars: Int(r.ratingStars?.int16Value ?? 0)
                     )
                 }
         }
@@ -171,9 +169,6 @@ actor ProcessingQueue {
             }
 
             for entry in entries {
-                // Skip decode-error rows with no stars
-                if entry.decodeError && entry.ratingStars == 0 && entry.overrideStars == nil { continue }
-
                 let stars = entry.overrideStars ?? entry.ratingStars
                 if stars <= 0 { continue }
 

@@ -20,10 +20,4 @@ enum FocalSettings {
     static var defaultMUSIQThreshold4: Float { generatedMUSIQThreshold4 }
     static let defaultCellSizeValue: Double = 160
     static let defaultAutoWriteXMP: Bool    = true
-
-    // MARK: - Migration
-    /// Migrate legacy keys written by pre-Focal versions. Call once at app launch.
-    static func migrateIfNeeded() {
-        // All legacy ensemble/cull keys removed in T11; no active migration logic.
-    }
 }
